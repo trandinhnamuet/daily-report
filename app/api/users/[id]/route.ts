@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '../../../../lib/db';
 
-export async function PUT(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, context: any) {
   try {
     const { name } = await request.json();
-    const { id } = context.params;
+  const { id } = context.params;
     
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -32,12 +29,9 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, context: any) {
   try {
-    const { id } = context.params;
+  const { id } = context.params;
     
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
     
