@@ -3,11 +3,11 @@ import pool from '../../../../lib/db';
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { name } = await request.json();
-    const { id } = params;
+    const { id } = context.params;
     
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -34,10 +34,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     
     const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
     
