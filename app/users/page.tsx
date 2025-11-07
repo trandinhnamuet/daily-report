@@ -172,7 +172,7 @@ export default function UsersPage() {
                 value={newUserName}
                 onChange={(e) => setNewUserName(e.target.value)}
                 placeholder="Nhập tên user..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
                 disabled={isLoading}
               />
               <button
@@ -213,7 +213,7 @@ export default function UsersPage() {
                       type="text"
                       value={editUserName}
                       onChange={(e) => setEditUserName(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
                       disabled={isLoading}
                     />
                     <button

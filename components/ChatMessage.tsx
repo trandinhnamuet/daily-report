@@ -28,7 +28,7 @@ export default function ChatMessage({ report }: ChatMessageProps) {
         <span className="font-medium text-gray-900">{report.user_name}</span>
         <span className="text-sm text-gray-500">{formattedTime}</span>
       </div>
-      <div className="ml-10 text-gray-700">
+      <div className="ml-10 text-gray-700 whitespace-pre-wrap">
         {report.message}
       </div>
     </div>

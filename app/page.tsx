@@ -118,12 +118,31 @@ export default function Home() {
 
       <div className="max-w-4xl mx-auto h-[calc(100vh-80px)] flex flex-col">
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 overflow-y-auto bg-white flex flex-col justify-end">
           {reports.length > 0 ? (
             <div className="divide-y divide-gray-200">
-              {reports.map((report) => (
-                <ChatMessage key={report.id} report={report} />
-              ))}
+              {(() => {
+                let lastDate = '';
+                return reports.slice().reverse().map((report, idx, arr) => {
+                  const currentDate = new Date(report.created_at).toISOString().slice(0, 10);
+                  const showDivider = idx === 0 || currentDate !== new Date(arr[idx - 1].created_at).toISOString().slice(0, 10);
+                  return (
+                    <>
+                      {showDivider && (
+                        <div className="w-full flex items-center my-2">
+                          <div className="flex-grow border-t border-gray-300" />
+                          <span className="mx-4 text-xs text-gray-400 font-medium">
+                            {new Date(report.created_at).toLocaleDateString('vi-VN', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' })}
+                          </span>
+                          <div className="flex-grow border-t border-gray-300" />
+                        </div>
+                      )}
+                      <ChatMessage key={report.id} report={report} />
+                    </>
+                  );
+                });
+              })()}
+
               <div ref={messagesEndRef} />
             </div>
           ) : (
@@ -132,6 +151,7 @@ export default function Home() {
             </div>
           )}
         </div>
+
 
         {/* Message Input */}
         <div className="bg-white border-t border-gray-200 p-4">
@@ -150,7 +170,7 @@ export default function Home() {
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Nhập báo cáo công việc của bạn..."
                 rows={3}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 placeholder-gray-400"
                 disabled={!selectedUser || isLoading}
               />
               <button
