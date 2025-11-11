@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         id,
         detail,
         created_at
-      FROM documents
+      FROM daily_report.documents
       ORDER BY created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pool.query(`
-      INSERT INTO documents (user_id, detail) 
+      INSERT INTO daily_report.documents (user_id, detail) 
       VALUES (0, $1) 
       RETURNING id, user_id, detail, created_at
     `, [detail]);

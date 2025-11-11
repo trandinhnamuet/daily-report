@@ -10,7 +10,7 @@ export async function PUT(request: NextRequest, context: any) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
     const result = await pool.query(
-      'UPDATE users SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      'UPDATE daily_report.users SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
       [name, Number(id)]
     );
     console.log('Update result:', result.rows);
@@ -31,7 +31,7 @@ export async function DELETE(request: NextRequest, context: any) {
   try {
   const { id } = context.params;
     
-  const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [Number(id)]);
+  const result = await pool.query('DELETE FROM daily_report.users WHERE id = $1 RETURNING *', [Number(id)]);
     
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

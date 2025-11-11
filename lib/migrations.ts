@@ -16,9 +16,11 @@ export class MigrationRunner {
   }
 
   async init() {
-    // Tạo bảng migrations nếu chưa có
+    // Tạo schema daily_report nếu chưa có
+    await this.pool.query(`CREATE SCHEMA IF NOT EXISTS daily_report`);
+    // Tạo bảng migrations nếu chưa có ở daily_report schema
     await this.pool.query(`
-      CREATE TABLE IF NOT EXISTS migrations (
+      CREATE TABLE IF NOT EXISTS daily_report.migrations (
         id VARCHAR(255) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -49,8 +51,8 @@ export class MigrationRunner {
   }
 
   async getExecutedMigrations(): Promise<string[]> {
-    const result = await this.pool.query('SELECT id FROM migrations ORDER BY id');
-    return result.rows.map(row => row.id);
+  const result = await this.pool.query('SELECT id FROM daily_report.migrations ORDER BY id');
+  return result.rows.map(row => row.id);
   }
 
   async executeMigration(migration: Migration) {
@@ -59,7 +61,7 @@ export class MigrationRunner {
       await client.query('BEGIN');
       await client.query(migration.sql);
       await client.query(
-        'INSERT INTO migrations (id, name) VALUES ($1, $2)',
+        'INSERT INTO daily_report.migrations (id, name) VALUES ($1, $2)',
         [migration.id, migration.name]
       );
       await client.query('COMMIT');

@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
         dr.created_at,
         u.name as user_name,
         u.id as user_id
-      FROM daily_report dr
-      JOIN users u ON dr.user_id = u.id
+      FROM daily_report.daily_report dr
+      JOIN daily_report.users u ON dr.user_id = u.id
       ORDER BY dr.created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
@@ -37,13 +37,13 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pool.query(`
-      INSERT INTO daily_report (user_id, message) 
+      INSERT INTO daily_report.daily_report (user_id, message) 
       VALUES ($1, $2) 
       RETURNING id, user_id, message, created_at
     `, [user_id, message]);
     
     // Get user name for response
-    const userResult = await pool.query('SELECT name FROM users WHERE id = $1', [user_id]);
+    const userResult = await pool.query('SELECT name FROM daily_report.users WHERE id = $1', [user_id]);
     const report = result.rows[0];
     report.user_name = userResult.rows[0]?.name;
     

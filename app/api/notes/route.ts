@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         id,
         note,
         created_at
-      FROM notes
+      FROM daily_report.notes
       ORDER BY created_at DESC
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await pool.query(`
-      INSERT INTO notes (user_id, note) 
+      INSERT INTO daily_report.notes (user_id, note) 
       VALUES (0, $1) 
       RETURNING id, user_id, note, created_at
     `, [note]);
