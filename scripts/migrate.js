@@ -9,7 +9,6 @@ class MigrationRunner {
   }
 
   async init() {
-    // Tạo bảng migrations nếu chưa có
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS migrations (
         id VARCHAR(255) PRIMARY KEY,
@@ -94,10 +93,12 @@ const pool = new Pool({
   user: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl:
+    process.env.NODE_ENV === 'production'
+      ? { rejectUnauthorized: false }
+      : false,
 });
+
 
 async function runMigrations() {
   const migrationRunner = new MigrationRunner(pool);

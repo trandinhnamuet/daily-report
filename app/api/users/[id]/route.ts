@@ -1,45 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
-import pool from '../../../../lib/db';
+import pool from '@/lib/db';
 
-export async function PUT(request: NextRequest, context: any) {
-  try {
-    const { name } = await request.json();
-    const { id } = context.params;
-    console.log('PUT /api/users/[id] - id:', id, 'name:', name);
-    if (!name) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-    }
-    const result = await pool.query(
-      'UPDATE daily_report.users SET name = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [name, Number(id)]
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const userId = Number(id);
+
+  const result = await pool.query(
+    'SELECT id, name FROM daily_report.users WHERE id = $1',
+    [userId]
+  );
+
+  if (result.rows.length === 0) {
+    return NextResponse.json(
+      { error: 'User not found' },
+      { status: 404 }
     );
-    console.log('Update result:', result.rows);
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-    return NextResponse.json(result.rows[0]);
-  } catch (error: any) {
-    console.error('Error updating user:', error);
-    if (error.code === '23505') {
-      return NextResponse.json({ error: 'User with this name already exists' }, { status: 409 });
-    }
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
   }
+
+  return NextResponse.json(result.rows[0]);
+}
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { name } = await req.json();
+
+  if (!name) {
+    return NextResponse.json(
+      { error: 'Name is required' },
+      { status: 400 }
+    );
+  }
+
+  const { id } = await params;
+  const userId = Number(id);
+
+  const result = await pool.query(
+    'UPDATE daily_report.users SET name = $1 WHERE id = $2 RETURNING id, name',
+    [name, userId]
+  );
+
+  if (result.rows.length === 0) {
+    return NextResponse.json(
+      { error: 'User not found' },
+      { status: 404 }
+    );
+  }
+
+  return NextResponse.json(result.rows[0]);
 }
 
-export async function DELETE(request: NextRequest, context: any) {
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-  const { id } = context.params;
-    
-  const result = await pool.query('DELETE FROM daily_report.users WHERE id = $1 RETURNING *', [Number(id)]);
-    
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    const { id } = await params;
+    const userId = Number(id);
+
+    const result = await pool.query(
+      'DELETE FROM daily_report.users WHERE id = $1 RETURNING id',
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
-    
-    return NextResponse.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 });
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    console.error('DELETE USER ERROR:', err);
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
+    );
   }
 }

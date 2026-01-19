@@ -1,27 +1,46 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, ArrowLeft, Save, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Send, Users } from 'lucide-react';
 import Link from 'next/link';
+import ChatMessage from '@/components/ChatMessage';
+import DocumentPanel from '@/components/DocumentPanel';
+import NotesPanel from '@/components/NotesPanel';
+import UserSelector from '@/components/UserSelector';
 
 interface User {
   id: number;
   name: string;
-  created_at: string;
-  updated_at: string;
 }
 
-export default function UsersPage() {
+interface Report {
+  id: number;
+  message: string;
+  created_at: string;
+  user_name: string;
+  user_id: number;
+}
+
+export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [newUserName, setNewUserName] = useState('');
-  const [editUserName, setEditUserName] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     fetchUsers();
+    fetchReports();
   }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [reports]);
 
   const fetchUsers = async () => {
     try {
@@ -35,236 +54,147 @@ export default function UsersPage() {
     }
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserName.trim()) return;
-
-    setIsLoading(true);
+  const fetchReports = async () => {
     try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: newUserName.trim() }),
-      });
-
+      const response = await fetch('/api/reports');
       if (response.ok) {
-        const newUser = await response.json();
-        setUsers(prev => [...prev, newUser]);
-        setNewUserName('');
-        setShowAddForm(false);
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to add user');
+        const data = await response.json();
+        setReports(data);
       }
     } catch (error) {
-      console.error('Error adding user:', error);
-      alert('Failed to add user');
-    } finally {
-      setIsLoading(false);
+      console.error('Error fetching reports:', error);
     }
   };
 
-  const handleEditUser = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingUser || !editUserName.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch(`/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ name: editUserName.trim() }),
-      });
-
-      if (response.ok) {
-        const updatedUser = await response.json();
-        setUsers(prev => 
-          prev.map(user => user.id === editingUser.id ? updatedUser : user)
-        );
-        setEditingUser(null);
-        setEditUserName('');
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to update user');
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      alert('Failed to update user');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa user này? Tất cả báo cáo của user sẽ bị xóa.')) {
+    
+    if (!selectedUser || !message.trim()) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
+      const response = await fetch('/api/reports', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          message: message.trim(),
+        }),
       });
 
       if (response.ok) {
-        setUsers(prev => prev.filter(user => user.id !== userId));
+        const newReport = await response.json();
+        setReports(prev => [newReport, ...prev]);
+        setMessage('');
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to delete user');
+        console.error('Failed to send message');
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+      console.error('Error sending message:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const startEdit = (user: User) => {
-    setEditingUser(user);
-    setEditUserName(user.name);
-  };
-
-  const cancelEdit = () => {
-    setEditingUser(null);
-    setEditUserName('');
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
+    <div className="h-screen flex flex-col bg-gray-100">
+      {/* Header - Fixed height */}
+      <div className="bg-white shadow-sm border-b z-10 shrink-0">
+        <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                href="/"
-                className="inline-flex items-center text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại Chat
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý Users</h1>
-            </div>
-            <button
-              onClick={() => setShowAddForm(true)}
+            <h1 className="text-2xl font-bold text-gray-900">Daily Report Chat</h1>
+            <Link
+              href="/users"
               className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Thêm User
-            </button>
+              <Users className="w-4 h-4 mr-2" />
+              Quản lý Users
+            </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        {/* Add User Form */}
-        {showAddForm && (
-          <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Thêm User Mới</h2>
-            <form onSubmit={handleAddUser} className="flex space-x-4">
-              <input
-                type="text"
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                placeholder="Nhập tên user..."
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={!newUserName.trim() || isLoading}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Lưu
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setNewUserName('');
-                }}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
+      {/* Main Layout: 3 Columns - Full height remaining */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left Sidebar - DocumentPanel */}
+        <div className="w-80 bg-white border-r border-gray-200 flex flex-col min-h-0">
+          <DocumentPanel />
+        </div>
 
-        {/* Users List */}
-        <div className="bg-white rounded-lg shadow-sm border">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Danh sách Users ({users.length})
-            </h2>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {users.map((user) => (
-              <div key={user.id} className="px-6 py-4">
-                {editingUser?.id === user.id ? (
-                  <form onSubmit={handleEditUser} className="flex items-center space-x-4">
-                    <input
-                      type="text"
-                      value={editUserName}
-                      onChange={(e) => setEditUserName(e.target.value)}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-400"
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="submit"
-                      disabled={!editUserName.trim() || isLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                    >
-                      <Save className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={cancelEdit}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </form>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-medium text-gray-900">{user.name}</h3>
-                      <p className="text-sm text-gray-500">
-                        ID: {user.id} • Tạo: {new Date(user.created_at).toLocaleDateString('vi-VN')}
-                      </p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => startEdit(user)}
-                        className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-md"
-                        disabled={isLoading}
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-md"
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
+        {/* Center - Chat Area */}
+        <div className="flex-1 flex flex-col min-h-0 bg-white">
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+            {reports.length > 0 ? (
+              <div className="divide-y divide-gray-200">
+                {(() => {
+                  let lastDate = '';
+                  return reports.slice().reverse().map((report, idx, arr) => {
+                    const currentDate = new Date(report.created_at).toISOString().slice(0, 10);
+                    const showDivider = idx === 0 || currentDate !== new Date(arr[idx - 1].created_at).toISOString().slice(0, 10);
+                    return (
+                      <div key={report.id}>
+                        {showDivider && (
+                          <div className="w-full flex items-center my-4">
+                            <div className="flex-grow border-t border-gray-300" />
+                            <span className="mx-4 text-xs text-gray-400 font-medium">
+                              {new Date(report.created_at).toLocaleDateString('vi-VN', { weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit' })}
+                            </span>
+                            <div className="flex-grow border-t border-gray-300" />
+                          </div>
+                        )}
+                        <ChatMessage report={report} />
+                      </div>
+                    );
+                  });
+                })()}
+                <div ref={messagesEndRef} />
               </div>
-            ))}
-            {users.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
-                Chưa có user nào. Hãy thêm user đầu tiên!
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                Chưa có báo cáo nào. Hãy bắt đầu báo cáo công việc!
               </div>
             )}
           </div>
+
+          {/* Message Input */}
+          <div className="border-t border-gray-200 p-4 shrink-0">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="w-full max-w-xs">
+                <UserSelector
+                  users={users}
+                  selectedUser={selectedUser}
+                  onUserSelect={setSelectedUser}
+                />
+              </div>
+              <div className="flex space-x-2">
+                <textarea
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  placeholder="Nhập báo cáo công việc của bạn..."
+                  rows={3}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 placeholder-gray-400"
+                  disabled={!selectedUser || isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={!selectedUser || !message.trim() || isLoading}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Right Sidebar - NotesPanel */}
+        <div className="w-80 bg-white border-l border-gray-200 flex flex-col min-h-0">
+          <NotesPanel />
         </div>
       </div>
     </div>
