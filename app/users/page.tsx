@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, ArrowLeft, Save, X } from 'lucide-react';
 import Link from 'next/link';
 
@@ -19,8 +19,17 @@ export default function UsersPage() {
   const [editUserName, setEditUserName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
+  // ✅ BroadcastChannel chỉ tạo 1 lần
+  const channelRef = useRef<BroadcastChannel | null>(null);
+
   useEffect(() => {
     fetchUsers();
+
+    channelRef.current = new BroadcastChannel('user-sync');
+
+    return () => {
+      channelRef.current?.close();
+    };
   }, []);
 
   const fetchUsers = async () => {
@@ -28,6 +37,7 @@ export default function UsersPage() {
     if (res.ok) setUsers(await res.json());
   };
 
+  /* ================= ADD USER ================= */
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim()) return;
@@ -45,12 +55,18 @@ export default function UsersPage() {
         setUsers(prev => [...prev, user]);
         setNewUserName('');
         setShowAddForm(false);
+
+        channelRef.current?.postMessage({
+          type: 'user-created',
+          payload: user,
+        });
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ================= EDIT USER ================= */
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser || !editUserName.trim()) return;
@@ -65,9 +81,17 @@ export default function UsersPage() {
 
       if (res.ok) {
         const updated = await res.json();
+
         setUsers(prev =>
           prev.map(u => (u.id === updated.id ? updated : u))
         );
+
+        // 🔥 REALTIME ĐÚNG
+        channelRef.current?.postMessage({
+          type: 'user-updated',
+          payload: updated,
+        });
+
         setEditingUser(null);
         setEditUserName('');
       }
@@ -76,6 +100,7 @@ export default function UsersPage() {
     }
   };
 
+  /* ================= DELETE USER ================= */
   const handleDeleteUser = async (id: number) => {
     if (!confirm('Bạn có chắc chắn muốn xóa user này?')) return;
 
@@ -84,6 +109,11 @@ export default function UsersPage() {
       const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setUsers(prev => prev.filter(u => u.id !== id));
+
+        channelRef.current?.postMessage({
+          type: 'user-deleted',
+          payload: { id },
+        });
       }
     } finally {
       setIsLoading(false);
@@ -121,76 +151,47 @@ export default function UsersPage() {
               placeholder="Nhập tên user..."
               disabled={isLoading}
             />
-            <button
-              type="submit"
-              disabled={!newUserName.trim() || isLoading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-            >
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
               <Save className="w-4 h-4" />
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setShowAddForm(false);
-                setNewUserName('');
-              }}
-              className="px-4 py-2 border rounded-lg"
-            >
+            <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 border rounded-lg">
               <X className="w-4 h-4" />
             </button>
           </form>
         )}
 
-        <div className="bg-white border rounded-lg">
-          <div className="px-6 py-4 border-b font-semibold">
-            Danh sách Users ({users.length})
-          </div>
-
-          <div className="divide-y divide-gray-200">
-            {users.map(user => (
-              <div key={user.id} className="px-6 py-4">
-                {editingUser?.id === user.id ? (
-                  <form onSubmit={handleEditUser} className="flex gap-3">
-                    <input
-                      value={editUserName}
-                      onChange={e => setEditUserName(e.target.value)}
-                      className="flex-1 border rounded px-3 py-2"
-                      disabled={isLoading}
-                    />
-                    <button type="submit" className="px-3 py-2 bg-blue-600 text-white rounded">
-                      <Save className="w-4 h-4" />
+        <div className="bg-white border rounded-lg divide-y">
+          {users.map(user => (
+            <div key={user.id} className="px-6 py-4">
+              {editingUser?.id === user.id ? (
+                <form onSubmit={handleEditUser} className="flex gap-3">
+                  <input
+                    value={editUserName}
+                    onChange={e => setEditUserName(e.target.value)}
+                    className="flex-1 border rounded px-3 py-2"
+                  />
+                  <button className="px-3 py-2 bg-blue-600 text-white rounded">
+                    <Save className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => setEditingUser(null)} className="px-3 py-2 border rounded">
+                    <X className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <div className="flex justify-between items-center">
+                  <div>{user.name}</div>
+                  <div className="flex gap-2">
+                    <button onClick={() => { setEditingUser(user); setEditUserName(user.name); }}>
+                      <Edit2 className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => setEditingUser(null)} className="px-3 py-2 border rounded">
-                      <X className="w-4 h-4" />
+                    <button onClick={() => handleDeleteUser(user.id)}>
+                      <Trash2 className="w-4 h-4 text-red-600" />
                     </button>
-                  </form>
-                ) : (
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">{user.name}</div>
-                      <div className="text-sm text-gray-500">
-                        ID: {user.id} • Tạo: {new Date(user.created_at).toLocaleDateString('vi-VN')}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setEditingUser(user); setEditUserName(user.name); }}>
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => handleDeleteUser(user.id)}>
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </button>
-                    </div>
                   </div>
-                )}
-              </div>
-            ))}
-
-            {users.length === 0 && (
-              <div className="px-6 py-8 text-center text-gray-500">
-                Chưa có user nào. Hãy thêm user đầu tiên!
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>
