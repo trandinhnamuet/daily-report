@@ -51,12 +51,11 @@ export default function UserProvider({
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 w-full max-w-sm">
             <h2 className="text-lg font-semibold mb-4">
-              Chọn người báo cáo
+              Bạn là ai?
             </h2>
 
             <UserSelector
               users={users}
-              defaultReporterId={currentUserId ?? undefined}
             />
           </div>
         </div>

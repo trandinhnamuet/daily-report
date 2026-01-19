@@ -10,20 +10,14 @@ interface User {
 
 interface UserSelectorProps {
   users: User[];
-  defaultReporterId?: string | number;
   onSelected?: () => void;
 }
 
-export default function UserSelector({
-  users,
-  defaultReporterId,
-  onSelected,
-}: UserSelectorProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function UserSelector({ users, onSelected }: UserSelectorProps) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [forcePopup, setForcePopup] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedId, setSelectedId] = useState<string>(
-    defaultReporterId ? String(defaultReporterId) : ''
-  );
+  const [selectedId, setSelectedId] = useState<string>('');
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +28,7 @@ export default function UserSelector({
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 🔧 SYNC COOKIE → STATE (BẮT BUỘC)
+  // 🔧 Check cookie khi vào
   useEffect(() => {
     const reporterId =
       document.cookie
@@ -44,84 +38,75 @@ export default function UserSelector({
 
     if (reporterId) {
       setSelectedId(reporterId);
+    } else {
+      setForcePopup(true);
     }
   }, []);
 
-  // Đóng dropdown khi click ra ngoài
+  // close dropdown when click outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
       }
     }
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectUser = async (user: User) => {
-    try {
-      setSelectedId(user.id.toString());
+  const selectUser = async (user: User) => {
+    setSelectedId(user.id.toString());
 
-      await fetch('/api/reporter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: user.id,
-          name: user.name,
-        }),
-      });
+    await fetch('/api/reporter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: user.id,
+        name: user.name,
+      }),
+    });
 
-      onSelected?.();
-      setIsOpen(false);
-      setSearchTerm('');
-    } catch {
-      alert('Không thể chọn người báo cáo. Vui lòng thử lại.');
-    }
+    setSearchTerm('');
+    setIsDropdownOpen(false);
+    setForcePopup(false);
+    onSelected?.();
   };
 
-  return (
+  /* ================= NORMAL SELECTOR ================= */
+  const selectorUI = (
     <div className="relative" ref={wrapperRef}>
       <button
         type="button"
-        onClick={() => setIsOpen(prev => !prev)}
-        className="w-full px-4 py-2 text-left bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={() => setIsDropdownOpen(p => !p)}
+        className="w-full px-4 py-2 text-left bg-white border border-gray-300 rounded-lg shadow-sm"
       >
         <div className="flex items-center justify-between">
-          <span className="text-gray-900">
-            {selectedUser ? selectedUser.name : 'Chọn người báo cáo'}
-          </span>
+          <span>{selectedUser ? selectedUser.name : 'Chọn người báo cáo'}</span>
           <ChevronDown className="w-5 h-5 text-gray-400" />
         </div>
       </button>
 
-      {isOpen && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+      {isDropdownOpen && (
+        <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg">
           <div className="p-2">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
-                type="text"
-                placeholder="Tìm kiếm người dùng..."
+                autoFocus
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder="Tìm người dùng..."
+                className="w-full pl-10 pr-4 py-2 border rounded-md"
               />
             </div>
           </div>
 
           <div className="max-h-60 overflow-y-auto">
-            {filteredUsers.length === 0 && (
-              <div className="px-4 py-2 text-sm text-gray-500">
-                Không tìm thấy người dùng
-              </div>
-            )}
-
             {filteredUsers.map(user => (
               <button
                 key={user.id}
-                onClick={() => handleSelectUser(user)}
-                className={`w-full px-4 py-2 text-left hover:bg-gray-100 focus:outline-none
+                onClick={() => selectUser(user)}
+                className={`w-full px-4 py-2 text-left hover:bg-gray-100
                   ${selectedId === user.id.toString() ? 'bg-blue-50 font-medium' : ''}
                 `}
               >
@@ -133,4 +118,42 @@ export default function UserSelector({
       )}
     </div>
   );
+
+  /* ================= FORCE POPUP ================= */
+  if (forcePopup) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6">
+          <h2 className="text-lg font-semibold text-center mb-4">
+            Bạn là ai?
+          </h2>
+
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              autoFocus
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Tìm người dùng..."
+              className="w-full pl-10 pr-4 py-2 border rounded-md"
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto border rounded-md">
+            {filteredUsers.map(user => (
+              <button
+                key={user.id}
+                onClick={() => selectUser(user)}
+                className="w-full px-4 py-3 text-left hover:bg-blue-50"
+              >
+                {user.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return selectorUI;
 }
