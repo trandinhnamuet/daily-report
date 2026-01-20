@@ -1,65 +1,84 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import UserSelector from '@/components/UserSelector';
+import { createContext, useContext, useState, useEffect } from 'react';
 
-interface User {
-  id: number;
+interface CurrentUser {
+  id: number | null;
   name: string;
 }
 
-export default function UserProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const [users, setUsers] = useState<User[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+interface UserContextType {
+  currentUserId: number | null;
+  currentUserName: string;
+  reporterId: number | null;
+  setReporterId: (id: number | null) => void;
+  setCurrentUser: (user: { id: number; name: string }) => void;
+  resetCurrentUser: () => void;
+}
 
-  // Load users
+const UserContext = createContext<UserContextType | null>(null);
+
+/* ================= PROVIDER ================= */
+export function UserProvider({ children }: { children: React.ReactNode }) {
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [currentUserName, setCurrentUserName] = useState('');
+  const [reporterId, setReporterId] = useState<number | null>(null);
+
+  /* ===== load current user from cookie (1 lần) ===== */
   useEffect(() => {
-    fetch('/api/users')
-      .then(res => res.json())
-      .then((data: User[]) => setUsers(data))
-      .catch(err => {
-        console.error('Load users failed', err);
-      });
+    const id = document.cookie
+      .split('; ')
+      .find(c => c.startsWith('current_user_id='))
+      ?.split('=')[1];
+
+    const name = document.cookie
+      .split('; ')
+      .find(c => c.startsWith('current_user_name='))
+      ?.split('=')[1];
+
+    if (id) {
+      setCurrentUserId(Number(id));
+      setCurrentUserName(decodeURIComponent(name || ''));
+    }
   }, []);
 
-  // Load current reporter (từ cookie / server)
- useEffect(() => {
-  const reporterId =
-    document.cookie
-      .split('; ')
-      .find(c => c.startsWith('reporter_id='))
-      ?.split('=')[1] ?? null;
+  /* ===== actions ===== */
+  const setCurrentUser = (user: { id: number; name: string }) => {
+    document.cookie = `current_user_id=${user.id}; path=/`;
+    document.cookie = `current_user_name=${encodeURIComponent(user.name)}; path=/`;
+    setCurrentUserId(user.id);
+    setCurrentUserName(user.name);
+  };
 
-  if (reporterId) {
-    setCurrentUserId(reporterId);
-    setOpen(false);
-  } else {
-    setOpen(true);
-  }
-}, []); [];
+ const resetCurrentUser = () => {
+  document.cookie = 'current_user_id=; Max-Age=0; path=/';
+  document.cookie = 'current_user_name=; Max-Age=0; path=/';
+  setCurrentUserId(null);
+  setCurrentUserName('');
+};
+
 
   return (
-    <>
+    <UserContext.Provider
+      value={{
+        currentUserId,
+        currentUserName,
+        reporterId,
+        setReporterId,
+        setCurrentUser,
+        resetCurrentUser,
+      }}
+    >
       {children}
-
-      {open && users.length > 0 && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 w-full max-w-sm">
-            <h2 className="text-lg font-semibold mb-4">
-              Bạn là ai?
-            </h2>
-
-            <UserSelector
-              users={users}
-            />
-          </div>
-        </div>
-      )}
-    </>
+    </UserContext.Provider>
   );
+}
+
+/* ================= HOOK ================= */
+export function useCurrentUser() {
+  const ctx = useContext(UserContext);
+  if (!ctx) {
+    throw new Error('useCurrentUser must be used inside UserProvider');
+  }
+  return ctx;
 }

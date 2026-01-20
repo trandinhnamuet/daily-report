@@ -33,28 +33,29 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { message } = await request.json();
+    const { user_id, message } = await request.json();
+if (!user_id || !message?.trim()) {
+  return NextResponse.json(
+    { error: 'Missing user or message' },
+    { status: 400 }
+  );
+}
 
-    const cookieStore = cookies();
-    const reporterId = (await cookieStore).get('reporter_id')?.value;
+const insertResult = await pool.query(
+  `
+  INSERT INTO daily_report.daily_report (user_id, message)
+  VALUES ($1, $2)
+  RETURNING id, user_id, message, created_at
+`,
+  [Number(user_id), message.trim()]
+);
 
-    if (!reporterId || !message?.trim()) {
-      return NextResponse.json({ error: 'Missing reporter or message' }, { status: 400 });
-    }
-
-    const insertResult = await pool.query(
-      `
-      INSERT INTO daily_report.daily_report (user_id, message)
-      VALUES ($1, $2)
-      RETURNING id, user_id, message, created_at
-    `,
-      [Number(reporterId), message.trim()]
-    );
 
     const userResult = await pool.query(
-      'SELECT name FROM daily_report.users WHERE id = $1',
-      [Number(reporterId)]
-    );
+  'SELECT name FROM daily_report.users WHERE id = $1',
+  [Number(user_id)]
+);
+
 
     return NextResponse.json(
       {

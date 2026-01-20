@@ -10,12 +10,11 @@ interface User {
 
 interface UserSelectorProps {
   users: User[];
-  onSelected?: () => void;
+  onSelected: (user: User) => void;
 }
 
 export default function UserSelector({ users, onSelected }: UserSelectorProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [forcePopup, setForcePopup] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedId, setSelectedId] = useState<string>('');
 
@@ -28,22 +27,25 @@ export default function UserSelector({ users, onSelected }: UserSelectorProps) {
     user.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 🔧 Check cookie khi vào
+  /* ================= SYNC COOKIE + USERS ================= */
   useEffect(() => {
-    const reporterId =
-      document.cookie
-        .split('; ')
-        .find(c => c.startsWith('reporter_id='))
-        ?.split('=')[1];
+    if (!users.length) return;
 
-    if (reporterId) {
-      setSelectedId(reporterId);
-    } else {
-      setForcePopup(true);
+    const cookieId = document.cookie
+      .split('; ')
+      .find(c => c.startsWith('current_user_id='))
+      ?.split('=')[1];
+
+    if (!cookieId) {
+      setSelectedId('');
+      return;
     }
-  }, []);
 
-  // close dropdown when click outside
+    const exists = users.some(u => u.id.toString() === cookieId);
+    setSelectedId(exists ? cookieId : '');
+  }, [users]);
+
+  /* ================= CLICK OUTSIDE ================= */
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -54,26 +56,23 @@ export default function UserSelector({ users, onSelected }: UserSelectorProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const selectUser = async (user: User) => {
+  /* ================= REALTIME USER CHANGE ================= */
+  useEffect(() => {
+    if (!selectedId) return;
+
+    const exists = users.some(u => u.id.toString() === selectedId);
+    if (!exists) setSelectedId('');
+  }, [users, selectedId]);
+
+  /* ================= CHỌN USER ================= */
+  const selectUser = (user: User) => {
     setSelectedId(user.id.toString());
-
-    await fetch('/api/reporter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: user.id,
-        name: user.name,
-      }),
-    });
-
     setSearchTerm('');
     setIsDropdownOpen(false);
-    setForcePopup(false);
-    onSelected?.();
+    onSelected(user);
   };
 
-  /* ================= NORMAL SELECTOR ================= */
-  const selectorUI = (
+  return (
     <div className="relative" ref={wrapperRef}>
       <button
         type="button"
@@ -106,9 +105,11 @@ export default function UserSelector({ users, onSelected }: UserSelectorProps) {
               <button
                 key={user.id}
                 onClick={() => selectUser(user)}
-                className={`w-full px-4 py-2 text-left hover:bg-gray-100
-                  ${selectedId === user.id.toString() ? 'bg-blue-50 font-medium' : ''}
-                `}
+                className={`w-full px-4 py-2 text-left hover:bg-gray-100 ${
+                  selectedId === user.id.toString()
+                    ? 'bg-blue-50 font-medium'
+                    : ''
+                }`}
               >
                 {user.name}
               </button>
@@ -118,42 +119,4 @@ export default function UserSelector({ users, onSelected }: UserSelectorProps) {
       )}
     </div>
   );
-
-  /* ================= FORCE POPUP ================= */
-  if (forcePopup) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-xl p-6">
-          <h2 className="text-lg font-semibold text-center mb-4">
-            Bạn là ai?
-          </h2>
-
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              autoFocus
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Tìm người dùng..."
-              className="w-full pl-10 pr-4 py-2 border rounded-md"
-            />
-          </div>
-
-          <div className="max-h-64 overflow-y-auto border rounded-md">
-            {filteredUsers.map(user => (
-              <button
-                key={user.id}
-                onClick={() => selectUser(user)}
-                className="w-full px-4 py-3 text-left hover:bg-blue-50"
-              >
-                {user.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return selectorUI;
 }

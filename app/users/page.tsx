@@ -19,17 +19,12 @@ export default function UsersPage() {
   const [editUserName, setEditUserName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // ✅ BroadcastChannel chỉ tạo 1 lần
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
     fetchUsers();
-
     channelRef.current = new BroadcastChannel('user-sync');
-
-    return () => {
-      channelRef.current?.close();
-    };
+    return () => channelRef.current?.close();
   }, []);
 
   const fetchUsers = async () => {
@@ -86,7 +81,6 @@ export default function UsersPage() {
           prev.map(u => (u.id === updated.id ? updated : u))
         );
 
-        // 🔥 REALTIME ĐÚNG
         channelRef.current?.postMessage({
           type: 'user-updated',
           payload: updated,
@@ -150,6 +144,7 @@ export default function UsersPage() {
               className="flex-1 border rounded-lg px-4 py-2"
               placeholder="Nhập tên user..."
               disabled={isLoading}
+              autoFocus
             />
             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
               <Save className="w-4 h-4" />
@@ -166,6 +161,7 @@ export default function UsersPage() {
               {editingUser?.id === user.id ? (
                 <form onSubmit={handleEditUser} className="flex gap-3">
                   <input
+                    autoFocus
                     value={editUserName}
                     onChange={e => setEditUserName(e.target.value)}
                     className="flex-1 border rounded px-3 py-2"
@@ -173,7 +169,11 @@ export default function UsersPage() {
                   <button className="px-3 py-2 bg-blue-600 text-white rounded">
                     <Save className="w-4 h-4" />
                   </button>
-                  <button type="button" onClick={() => setEditingUser(null)} className="px-3 py-2 border rounded">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="px-3 py-2 border rounded"
+                  >
                     <X className="w-4 h-4" />
                   </button>
                 </form>
@@ -181,7 +181,10 @@ export default function UsersPage() {
                 <div className="flex justify-between items-center">
                   <div>{user.name}</div>
                   <div className="flex gap-2">
-                    <button onClick={() => { setEditingUser(user); setEditUserName(user.name); }}>
+                    <button onClick={() => {
+                      setEditingUser(user);
+                      setEditUserName(user.name);
+                    }}>
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleDeleteUser(user.id)}>
