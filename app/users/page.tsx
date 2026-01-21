@@ -1,7 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, ArrowLeft, Save, X } from 'lucide-react';
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  ArrowLeft,
+  Save,
+  X,
+  Monitor
+} from 'lucide-react';
 import Link from 'next/link';
 
 interface User {
@@ -11,13 +19,24 @@ interface User {
   updated_at: string;
 }
 
+interface Device {
+  device_id: string;
+  first_seen_at: string | null;
+  last_seen_at: string | null;
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUserName, setNewUserName] = useState('');
   const [editUserName, setEditUserName] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
+
+  /** 🔽 DEVICE STATE */
+  const [openDevicesUserId, setOpenDevicesUserId] = useState<number | null>(null);
+  const [devicesMap, setDevicesMap] = useState<Record<number, Device[]>>({});
 
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -76,7 +95,6 @@ export default function UsersPage() {
 
       if (res.ok) {
         const updated = await res.json();
-
         setUsers(prev =>
           prev.map(u => (u.id === updated.id ? updated : u))
         );
@@ -114,17 +132,59 @@ export default function UsersPage() {
     }
   };
 
+const toggleDevices = async (userId: number) => {
+  // đóng nếu đang mở
+  if (openDevicesUserId === userId) {
+    setOpenDevicesUserId(null);
+    return;
+  }
+
+  setOpenDevicesUserId(userId);
+
+  // đã load rồi thì không fetch lại
+  if (devicesMap[userId]) return;
+
+  try {
+    const res = await fetch(`/api/users/${userId}/devices`);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    setDevicesMap(prev => ({
+      ...prev,
+      [userId]: data,
+    }));
+  } catch (err) {
+    console.error('Load devices failed:', err);
+
+    // để UI không bị treo
+    setDevicesMap(prev => ({
+      ...prev,
+      [userId]: [],
+    }));
+  }
+};
+
+
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* HEADER */}
       <div className="bg-white border-b">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center text-gray-600 hover:text-gray-900">
+            <Link
+              href="/"
+              className="flex items-center text-gray-600 hover:text-gray-900"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Quay lại Chat
             </Link>
             <h1 className="text-2xl font-bold">Quản lý Users</h1>
           </div>
+
           <button
             onClick={() => setShowAddForm(true)}
             className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg"
@@ -137,7 +197,10 @@ export default function UsersPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {showAddForm && (
-          <form onSubmit={handleAddUser} className="bg-white border rounded-lg p-6 mb-6 flex gap-4">
+          <form
+            onSubmit={handleAddUser}
+            className="bg-white border rounded-lg p-6 mb-6 flex gap-4"
+          >
             <input
               value={newUserName}
               onChange={e => setNewUserName(e.target.value)}
@@ -146,10 +209,14 @@ export default function UsersPage() {
               disabled={isLoading}
               autoFocus
             />
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg">
               <Save className="w-4 h-4" />
             </button>
-            <button type="button" onClick={() => setShowAddForm(false)} className="px-4 py-2 border rounded-lg">
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="px-4 py-2 border rounded-lg"
+            >
               <X className="w-4 h-4" />
             </button>
           </form>
@@ -178,20 +245,75 @@ export default function UsersPage() {
                   </button>
                 </form>
               ) : (
-                <div className="flex justify-between items-center">
-                  <div>{user.name}</div>
-                  <div className="flex gap-2">
-                    <button onClick={() => {
-                      setEditingUser(user);
-                      setEditUserName(user.name);
-                    }}>
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDeleteUser(user.id)}>
-                      <Trash2 className="w-4 h-4 text-red-600" />
-                    </button>
+                <>
+                  <div className="flex justify-between items-center">
+                    <div className="font-medium">{user.name}</div>
+
+                    <div className="flex gap-3 items-center">
+                      <button
+                        onClick={() => toggleDevices(user.id)}
+                        className="text-blue-600 text-sm flex items-center gap-1"
+                      >
+                        <Monitor className="w-4 h-4" />
+                        Thiết bị đã đăng nhập
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setEditingUser(user);
+                          setEditUserName(user.name);
+                        }}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+
+                      <button onClick={() => handleDeleteUser(user.id)}>
+                        <Trash2 className="w-4 h-4 text-red-600" />
+                      </button>
+                    </div>
                   </div>
-                </div>
+
+                  {/* 🔽 DEVICE LIST */}
+                  {openDevicesUserId === user.id && (
+                    <div className="mt-3 bg-gray-50 border rounded-lg p-3 space-y-2">
+                      {devicesMap[user.id]?.length ? (
+                        devicesMap[user.id].map((d, index) => {
+                          const shortId = d.device_id.slice(0, 8);
+
+                          return (
+                            <div
+                              key={d.device_id}
+                              className="text-sm border-b last:border-b-0 pb-2"
+                            >
+                              <div className="font-medium text-gray-800 mb-1">
+                                Thiết bị {index + 1} · ID: <span className="font-mono">{shortId}</span>
+                              </div>
+
+                              <div>
+                                <b>Lần đầu:</b>{' '}
+                                {d.first_seen_at
+                                  ? new Date(d.first_seen_at).toLocaleString('vi-VN')
+                                  : '—'}
+                              </div>
+
+                              <div>
+                                <b>Gần nhất:</b>{' '}
+                                {d.last_seen_at
+                                  ? new Date(d.last_seen_at).toLocaleString('vi-VN')
+                                  : '—'}
+                              </div>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="text-sm text-gray-500">
+                          Chưa có thiết bị nào
+                        </div>
+                      )}
+
+                    </div>
+                  )}
+                </>
               )}
             </div>
           ))}
