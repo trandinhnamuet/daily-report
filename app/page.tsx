@@ -12,6 +12,7 @@ import NotesPanel from '../components/NotesPanel';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 
+/* ================= TYPES ================= */
 interface User {
   id: number;
   name: string;
@@ -25,6 +26,7 @@ interface Report {
   user_id: number;
 }
 
+/* ================= PAGE ================= */
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
@@ -32,7 +34,9 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
 
   const [showUserModal, setShowUserModal] = useState(false);
-  const [hasCheckedUser, setHasCheckedUser] = useState(false);
+
+  // 🔹 phân biệt auto-login vs chủ động đổi user
+  const [isSwitchingUser, setIsSwitchingUser] = useState(false);
 
   const [filterUserId, setFilterUserId] = useState<number | 'all'>('all');
   const [filterDate, setFilterDate] = useState<string>('all');
@@ -45,34 +49,36 @@ export default function Home() {
     currentUserName,
     reporterId,
     setReporterId,
-    resetCurrentUser,
     setCurrentUser,
+    resetCurrentUser,
+    loading,
   } = useCurrentUser();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
-const displayReports = reports
-  .filter(r => {
-    const byUser =
-      filterUserId === 'all' ? true : r.user_id === filterUserId;
+  /* ================= FILTER & SORT REPORTS ================= */
+  const displayReports = reports
+    .filter(r => {
+      const byUser =
+        filterUserId === 'all' ? true : r.user_id === filterUserId;
 
-    const byDate =
-      filterDate === 'all'
-        ? true
-        : r.created_at.slice(0, 10) === filterDate;
+      const byDate =
+        filterDate === 'all'
+          ? true
+          : r.created_at.slice(0, 10) === filterDate;
 
-    return byUser && byDate;
-  })
-  .slice()
-  .sort(
-    (a, b) =>
-      new Date(a.created_at).getTime() -
-      new Date(b.created_at).getTime()
-  );
+      return byUser && byDate;
+    })
+    .slice()
+    .sort(
+      (a, b) =>
+        new Date(a.created_at).getTime() -
+        new Date(b.created_at).getTime()
+    );
 
-
+  /* ================= FETCH USERS + REPORTS ================= */
   useEffect(() => {
     fetchUsers();
     fetchReports();
@@ -82,7 +88,9 @@ const displayReports = reports
       const { type, payload } = event.data || {};
 
       if (type === 'user-updated') {
-        setUsers(prev => prev.map(u => (u.id === payload.id ? payload : u)));
+        setUsers(prev =>
+          prev.map(u => (u.id === payload.id ? payload : u))
+        );
       }
 
       if (type === 'user-deleted') {
@@ -91,7 +99,6 @@ const displayReports = reports
         if (payload.id === currentUserId) {
           resetCurrentUser();
           setShowUserModal(true);
-          setHasCheckedUser(true);
         }
 
         if (payload.id === reporterId) setReporterId(null);
@@ -100,66 +107,48 @@ const displayReports = reports
     };
 
     return () => channelRef.current?.close();
-  }, [currentUserId, reporterId, filterUserId, resetCurrentUser, setReporterId]);
+  }, [
+    currentUserId,
+    reporterId,
+    filterUserId,
+    resetCurrentUser,
+    setReporterId,
+  ]);
 
+  /* ================= SHOW USER MODAL ================= */
   useEffect(() => {
-    if (!users.length || hasCheckedUser) return;
+    if (loading) return;
 
-    const id = document.cookie
-      .split('; ')
-      .find(c => c.startsWith('current_user_id='))
-      ?.split('=')[1];
-
-    const name = document.cookie
-      .split('; ')
-      .find(c => c.startsWith('current_user_name='))
-      ?.split('=')[1];
-
-    if (!id || !users.some(u => u.id === Number(id))) {
-      resetCurrentUser();
+    if (!currentUserId && !isSwitchingUser) {
       setShowUserModal(true);
-      setHasCheckedUser(true);
-      return;
     }
+  }, [loading, currentUserId, isSwitchingUser]);
 
-    setCurrentUser({
-      id: Number(id),
-      name: decodeURIComponent(name || ''),
-    });
-
-    setShowUserModal(false);
-    setHasCheckedUser(true);
-  }, [users, hasCheckedUser, resetCurrentUser, setCurrentUser]);
-
+  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayReports]);
 
+  /* ================= API ================= */
   const fetchUsers = async () => {
-  try {
-    const res = await fetch('/api/users');
-    if (!res.ok) throw new Error('fetch users failed');
-    const data = await res.json();
-    setUsers(data);
-  } catch (err) {
-    console.error('fetchUsers error:', err);
-    setUsers([]); // 🔥 không crash app
-  }
-};
+    try {
+      const res = await fetch('/api/users');
+      if (!res.ok) throw new Error();
+      setUsers(await res.json());
+    } catch {
+      setUsers([]);
+    }
+  };
 
-const fetchReports = async () => {
-  try {
-    const res = await fetch('/api/reports');
-    if (!res.ok) throw new Error('fetch reports failed');
-    const data = await res.json();
-    setReports(data);
-    if (data.length) setReporterId(data[0].user_id);
-  } catch (err) {
-    console.error('fetchReports error:', err);
-    setReports([]);
-  }
-};
-
+  const fetchReports = async () => {
+    try {
+      const res = await fetch('/api/reports');
+      if (!res.ok) throw new Error();
+      setReports(await res.json());
+    } catch {
+      setReports([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +167,7 @@ const fetchReports = async () => {
 
       if (res.ok) {
         const newReport = await res.json();
-        setReports(prev => [newReport, ...prev]);
+        setReports(prev => [...prev, newReport]);
         setReporterId(newReport.user_id);
         setMessage('');
       }
@@ -187,10 +176,19 @@ const fetchReports = async () => {
     }
   };
 
+  useEffect(() => {
+    if (currentUserId) {
+      setFilterUserId('all');
+      setFilterDate('all');
+    }
+  }, [currentUserId]);
+
   const isReadOnly = !currentUserId;
 
+  /* ================= UI ================= */
   return (
     <div className="h-screen flex flex-col bg-gray-100">
+      {/* ===== HEADER ===== */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">Daily Report Chat</h1>
@@ -204,6 +202,7 @@ const fetchReports = async () => {
         </div>
       </div>
 
+      {/* ===== BODY ===== */}
       <div className="flex-1 flex min-h-0">
         <div className="w-80 bg-white border-r">
           <DocumentPanel />
@@ -213,12 +212,7 @@ const fetchReports = async () => {
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {displayReports.length ? (
               displayReports.map(r => (
-                <ChatMessage
-                  key={r.id}
-                  report={r}
-                  users={users}
-                />
-
+                <ChatMessage key={r.id} report={r} users={users} />
               ))
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500">
@@ -230,14 +224,14 @@ const fetchReports = async () => {
 
           <div className="border-t p-4">
             <div className="flex justify-between items-center text-sm text-gray-600 mb-3 gap-4">
-              {currentUserId ? (
+              {currentUserId && (
                 <div className="flex items-center gap-2">
                   <span>
                     Đang dùng user: <b>{currentUserName}</b>
                   </span>
                   <button
                     onClick={() => {
-                      resetCurrentUser();
+                      setIsSwitchingUser(true);
                       setShowUserModal(true);
                     }}
                     className="text-red-500 hover:underline"
@@ -245,13 +239,6 @@ const fetchReports = async () => {
                     Đổi user
                   </button>
                 </div>
-              ) : (
-                <button
-                  onClick={() => setShowUserModal(true)}
-                  className="text-blue-600 hover:underline"
-                >
-                  Chọn user để gửi báo cáo
-                </button>
               )}
 
               <div className="flex items-center gap-3">
@@ -333,6 +320,7 @@ const fetchReports = async () => {
         </div>
       </div>
 
+      {/* ===== USER MODAL ===== */}
       {showUserModal &&
         createPortal(
           <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
@@ -342,22 +330,33 @@ const fetchReports = async () => {
             >
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-bold">Bạn là ai?</h2>
-                <button onClick={() => setShowUserModal(false)}>
+                <button
+                  onClick={() => {
+                    setShowUserModal(false);
+                    setIsSwitchingUser(false);
+                  }}
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
               <UserSelector
                 users={users}
-                onSelected={user => {
-                  document.cookie = `current_user_id=${user.id}; path=/`;
-                  document.cookie = `current_user_name=${encodeURIComponent(
-                    user.name
-                  )}; path=/`;
-                  setCurrentUser(user);
-                  setShowUserModal(false);
-                  setHasCheckedUser(true);
-                }}
+                onSelected={async user => {
+                await fetch('/api/auth/switch-user', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(user),
+                });
+
+                setCurrentUser(user);
+
+                setFilterUserId('all');
+                setFilterDate('all');
+
+                setShowUserModal(false);
+                setIsSwitchingUser(false);
+              }}
               />
             </div>
           </div>,

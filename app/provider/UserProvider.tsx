@@ -1,62 +1,78 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  ReactNode,
+} from 'react';
 
-interface CurrentUser {
-  id: number | null;
+interface User {
+  id: number;
   name: string;
 }
 
 interface UserContextType {
   currentUserId: number | null;
-  currentUserName: string;
+  currentUserName: string | null;
+
   reporterId: number | null;
   setReporterId: (id: number | null) => void;
-  setCurrentUser: (user: { id: number; name: string }) => void;
+
+  loading: boolean;
+
+  setCurrentUser: (user: User) => void;
   resetCurrentUser: () => void;
 }
 
 const UserContext = createContext<UserContextType | null>(null);
 
-/* ================= PROVIDER ================= */
-export function UserProvider({ children }: { children: React.ReactNode }) {
+export function UserProvider({ children }: { children: ReactNode }) {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
-  const [currentUserName, setCurrentUserName] = useState('');
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
   const [reporterId, setReporterId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  /* ===== load current user from cookie (1 lần) ===== */
+  // 🔒 CHỐNG DOUBLE EFFECT (CỰC KỲ QUAN TRỌNG)
+  const validatedRef = useRef(false);
+
   useEffect(() => {
-    const id = document.cookie
-      .split('; ')
-      .find(c => c.startsWith('current_user_id='))
-      ?.split('=')[1];
+    if (validatedRef.current) return;
+    validatedRef.current = true;
 
-    const name = document.cookie
-      .split('; ')
-      .find(c => c.startsWith('current_user_name='))
-      ?.split('=')[1];
+    const validateUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
 
-    if (id) {
-      setCurrentUserId(Number(id));
-      setCurrentUserName(decodeURIComponent(name || ''));
-    }
+        if (!res.ok) {
+          resetCurrentUser();
+          return;
+        }
+
+        const user = await res.json();
+        setCurrentUser(user);
+      } catch {
+        resetCurrentUser();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateUser();
   }, []);
 
-  /* ===== actions ===== */
-  const setCurrentUser = (user: { id: number; name: string }) => {
-    document.cookie = `current_user_id=${user.id}; path=/`;
-    document.cookie = `current_user_name=${encodeURIComponent(user.name)}; path=/`;
+  const setCurrentUser = (user: User) => {
     setCurrentUserId(user.id);
     setCurrentUserName(user.name);
   };
 
- const resetCurrentUser = () => {
-  document.cookie = 'current_user_id=; Max-Age=0; path=/';
-  document.cookie = 'current_user_name=; Max-Age=0; path=/';
-  setCurrentUserId(null);
-  setCurrentUserName('');
-};
-
+  const resetCurrentUser = () => {
+    setCurrentUserId(null);
+    setCurrentUserName(null);
+    setReporterId(null);
+  };
 
   return (
     <UserContext.Provider
@@ -65,6 +81,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         currentUserName,
         reporterId,
         setReporterId,
+        loading,
         setCurrentUser,
         resetCurrentUser,
       }}
@@ -74,7 +91,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ================= HOOK ================= */
 export function useCurrentUser() {
   const ctx = useContext(UserContext);
   if (!ctx) {
