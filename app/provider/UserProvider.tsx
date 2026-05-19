@@ -44,8 +44,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   /* ===== actions ===== */
   const setCurrentUser = (user: { id: number; name: string }) => {
-    document.cookie = `current_user_id=${user.id}; path=/`;
-    document.cookie = `current_user_name=${encodeURIComponent(user.name)}; path=/`;
+    const expiresDate = new Date();
+    expiresDate.setDate(expiresDate.getDate() + 365); // Hết hạn sau 365 ngày
+    const expires = `expires=${expiresDate.toUTCString()}`;
+    
+    document.cookie = `current_user_id=${user.id}; path=/; ${expires}`;
+    document.cookie = `current_user_name=${encodeURIComponent(user.name)}; path=/; ${expires}`;
     setCurrentUserId(user.id);
     setCurrentUserName(user.name);
   };
