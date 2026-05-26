@@ -12,7 +12,13 @@ interface Document {
 
 export default function DocumentPanel() {
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [message, setMessage] = useState('');
+  const DRAFT_KEY = 'draft_document';
+  const [message, setMessage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(DRAFT_KEY) ?? '';
+    }
+    return '';
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -20,6 +26,10 @@ export default function DocumentPanel() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, message);
+  }, [message]);
 
   useEffect(() => {
     fetchDocuments();
@@ -64,6 +74,7 @@ export default function DocumentPanel() {
         const newDocument = await response.json();
         setDocuments(prev => [newDocument, ...prev]);
         setMessage('');
+        localStorage.removeItem(DRAFT_KEY);
       } else {
         console.error('Failed to send document');
       }

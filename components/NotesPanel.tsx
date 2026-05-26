@@ -12,7 +12,13 @@ interface Note {
 
 export default function NotesPanel() {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [message, setMessage] = useState('');
+  const DRAFT_KEY = 'draft_note';
+  const [message, setMessage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(DRAFT_KEY) ?? '';
+    }
+    return '';
+  });
   const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -20,6 +26,10 @@ export default function NotesPanel() {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, message);
+  }, [message]);
 
   useEffect(() => {
     fetchNotes();
@@ -64,6 +74,7 @@ export default function NotesPanel() {
         const newNote = await response.json();
         setNotes(prev => [newNote, ...prev]);
         setMessage('');
+        localStorage.removeItem(DRAFT_KEY);
       } else {
         console.error('Failed to send note');
       }

@@ -28,7 +28,13 @@ interface Report {
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
-  const [message, setMessage] = useState('');
+  const DRAFT_KEY = 'draft_report';
+  const [message, setMessage] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(DRAFT_KEY) ?? '';
+    }
+    return '';
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   const [showUserModal, setShowUserModal] = useState(false);
@@ -135,6 +141,10 @@ const displayReports = reports
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayReports]);
 
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, message);
+  }, [message]);
+
   const fetchUsers = async () => {
   try {
     const res = await fetch('/api/users');
@@ -181,6 +191,7 @@ const fetchReports = async () => {
         setReports(prev => [newReport, ...prev]);
         setReporterId(newReport.user_id);
         setMessage('');
+        localStorage.removeItem(DRAFT_KEY);
       }
     } finally {
       setIsLoading(false);
