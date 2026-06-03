@@ -2,30 +2,6 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Per-message background color slots (light mode) */
-.msg-color-0 { background-color: #fff8e7; }
-.msg-color-1 { background-color: #e8f4fd; }
-.msg-color-2 { background-color: #e8fdf0; }
-.msg-color-3 { background-color: #fde8f0; }
-.msg-color-4 { background-color: #f0e8fd; }
-.msg-color-5 { background-color: #fdeee8; }
-.msg-color-6 { background-color: #e8fdfd; }
-.msg-color-7 { background-color: #fde8e8; }
-.msg-color-8 { background-color: #e8fdfa; }
-.msg-color-9 { background-color: #ebebfd; }
-
-/* Per-message background color slots (dark mode) */
-.dark .msg-color-0 { background-color: #2a1e00; }
-.dark .msg-color-1 { background-color: #001c3a; }
-.dark .msg-color-2 { background-color: #001e0d; }
-.dark .msg-color-3 { background-color: #2a0018; }
-.dark .msg-color-4 { background-color: #1a002e; }
-.dark .msg-color-5 { background-color: #2a1400; }
-.dark .msg-color-6 { background-color: #002426; }
-.dark .msg-color-7 { background-color: #2a0008; }
-.dark .msg-color-8 { background-color: #002420; }
-.dark .msg-color-9 { background-color: #10102a; }
-
 body {
   font-family: Arial, Helvetica, sans-serif;
 }

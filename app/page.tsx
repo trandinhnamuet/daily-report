@@ -6,7 +6,7 @@ import { Send, Users, X, Calendar, Sun, Moon } from 'lucide-react';
 import Link from 'next/link';
 
 import UserSelector from '../components/UserSelector';
-import ChatMessage from '../components/ChatMessage';
+import ChatMessage, { type Status } from '../components/ChatMessage';
 import DocumentPanel from '../components/DocumentPanel';
 import NotesPanel from '../components/NotesPanel';
 
@@ -29,6 +29,7 @@ interface Report {
 export default function Home() {
   const [users, setUsers] = useState<User[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
+  const [reportStatuses, setReportStatuses] = useState<Record<number, Status>>({});
   const DRAFT_KEY = 'draft_report';
   const [message, setMessage] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -198,24 +199,33 @@ export default function Home() {
       const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setReports(prev => prev.filter(r => r.id !== id));
+        setReportStatuses(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
       }
     } catch (err) {
       console.error('deleteReport error:', err);
     }
   };
 
+  const handleStatusChange = (id: number, status: Status) => {
+    setReportStatuses(prev => ({ ...prev, [id]: status }));
+  };
+
   const isReadOnly = !currentUserId;
 
   return (
-    <div className="h-screen flex flex-col bg-gray-100 dark:bg-gray-900">
+    <div className="h-screen flex flex-col bg-gray-100 dark:bg-[#1e1e1e]">
       {/* Header */}
-      <div className="bg-white dark:bg-gray-800 shadow-sm border-b dark:border-gray-700">
+      <div className="bg-white dark:bg-[#3c3c3c] shadow-sm border-b border-gray-200 dark:border-[#474747]">
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Daily Report Chat</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-[#d4d4d4]">Daily Report Chat</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              className="p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors"
               title={theme === 'light' ? 'Chuyển sang dark mode' : 'Chuyển sang light mode'}
             >
               {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
@@ -233,12 +243,12 @@ export default function Home() {
 
       <div className="flex-1 flex min-h-0">
         {/* Left: Documents */}
-        <div className="w-80 bg-white dark:bg-gray-800 border-r dark:border-gray-700">
+        <div className="w-80 bg-white dark:bg-[#252526] border-r border-gray-200 dark:border-[#3c3c3c]">
           <DocumentPanel />
         </div>
 
         {/* Center: Reports */}
-        <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
+        <div className="flex-1 flex flex-col bg-white dark:bg-[#1e1e1e]">
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {displayReports.length ? (
               displayReports.map(r => (
@@ -246,23 +256,25 @@ export default function Home() {
                   key={r.id}
                   report={r}
                   users={users}
+                  status={reportStatuses[r.id] ?? 'note'}
                   onDelete={handleDeleteReport}
+                  onStatusChange={handleStatusChange}
                 />
               ))
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#858585]">
                 Không có báo cáo
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="border-t dark:border-gray-700 p-4">
-            <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400 mb-3 gap-4">
+          <div className="border-t border-gray-200 dark:border-[#3c3c3c] p-4">
+            <div className="flex justify-between items-center text-sm text-gray-600 dark:text-[#858585] mb-3 gap-4">
               {currentUserId ? (
                 <div className="flex items-center gap-2">
                   <span>
-                    Đang dùng user: <b className="text-gray-800 dark:text-gray-200">{currentUserName}</b>
+                    Đang dùng user: <b className="text-gray-800 dark:text-[#d4d4d4]">{currentUserName}</b>
                   </span>
                   <button
                     onClick={() => {
@@ -291,7 +303,7 @@ export default function Home() {
                       e.target.value === 'all' ? 'all' : Number(e.target.value)
                     )
                   }
-                  className="bg-gray-100 dark:bg-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-xl px-4 py-2 text-sm"
+                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-xl px-4 py-2 text-sm"
                 >
                   <option value="all">Tất cả người dùng</option>
                   {users.map(u => (
@@ -303,7 +315,7 @@ export default function Home() {
 
                 <div className="flex flex-col items-end">
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500" />
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-[#858585]" />
                     <input
                       type="date"
                       max={today}
@@ -317,7 +329,7 @@ export default function Home() {
                           setFilterDate(e.target.value ? e.target.value : 'all');
                         }
                       }}
-                      className="pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-xl text-sm bg-gray-100 dark:bg-gray-700 dark:text-gray-200"
+                      className="pl-9 pr-3 py-2 border border-gray-300 dark:border-[#474747] rounded-xl text-sm bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4]"
                     />
                   </div>
                   {dateError && (
@@ -337,7 +349,7 @@ export default function Home() {
                     : 'Nhập báo cáo công việc...'
                 }
                 rows={3}
-                className="flex-1 border dark:border-gray-600 rounded-lg px-4 py-2 resize-none bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-4 py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585]"
                 disabled={isReadOnly || isLoading}
               />
               <button
@@ -352,7 +364,7 @@ export default function Home() {
         </div>
 
         {/* Right: Notes */}
-        <div className="w-80 bg-white dark:bg-gray-800 border-l dark:border-gray-700">
+        <div className="w-80 bg-white dark:bg-[#252526] border-l border-gray-200 dark:border-[#3c3c3c]">
           <NotesPanel />
         </div>
       </div>
@@ -360,16 +372,16 @@ export default function Home() {
       {/* User selection modal */}
       {showUserModal &&
         createPortal(
-          <div className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center">
+          <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center">
             <div
               ref={modalRef}
-              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow w-full max-w-sm space-y-4"
+              className="bg-white dark:bg-[#252526] p-6 rounded-xl shadow-xl w-full max-w-sm space-y-4 border border-gray-200 dark:border-[#3c3c3c]"
             >
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Bạn là ai?</h2>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-[#d4d4d4]">Bạn là ai?</h2>
                 <button
                   onClick={() => setShowUserModal(false)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  className="text-gray-500 dark:text-[#858585] hover:text-gray-700 dark:hover:text-[#d4d4d4]"
                 >
                   <X className="w-4 h-4" />
                 </button>

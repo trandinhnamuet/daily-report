@@ -96,18 +96,18 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#1e1e1e]">
+      <div className="bg-white dark:bg-[#3c3c3c] border-b border-gray-200 dark:border-[#474747]">
         <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4">
             <Link
               href="/"
-              className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              className="flex items-center text-gray-600 dark:text-[#cccccc] hover:text-gray-900 dark:hover:text-[#d4d4d4]"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Quay lại Chat
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Users</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-[#d4d4d4]">Quản lý Users</h1>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
@@ -123,12 +123,12 @@ export default function UsersPage() {
         {showAddForm && (
           <form
             onSubmit={handleAddUser}
-            className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg p-6 mb-6 flex gap-4"
+            className="bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg p-6 mb-6 flex gap-4"
           >
             <input
               value={newUserName}
               onChange={e => setNewUserName(e.target.value)}
-              className="flex-1 border dark:border-gray-600 rounded-lg px-4 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+              className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-4 py-2 bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585]"
               placeholder="Nhập tên user..."
               disabled={isLoading}
               autoFocus
@@ -142,14 +142,14 @@ export default function UsersPage() {
             <button
               type="button"
               onClick={() => setShowAddForm(false)}
-              className="px-4 py-2 border dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="px-4 py-2 border border-gray-300 dark:border-[#474747] rounded-lg text-gray-700 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e]"
             >
               <X className="w-4 h-4" />
             </button>
           </form>
         )}
 
-        <div className="bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg divide-y dark:divide-gray-700">
+        <div className="bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg divide-y divide-gray-100 dark:divide-[#3c3c3c]">
           {users.map(user => (
             <div key={user.id} className="px-6 py-4">
               {editingUser?.id === user.id ? (
@@ -158,7 +158,7 @@ export default function UsersPage() {
                     autoFocus
                     value={editUserName}
                     onChange={e => setEditUserName(e.target.value)}
-                    className="flex-1 border dark:border-gray-600 rounded px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                    className="flex-1 border border-gray-300 dark:border-[#474747] rounded px-3 py-2 bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4]"
                   />
                   <button className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                     <Save className="w-4 h-4" />
@@ -166,21 +166,21 @@ export default function UsersPage() {
                   <button
                     type="button"
                     onClick={() => setEditingUser(null)}
-                    className="px-3 py-2 border dark:border-gray-600 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="px-3 py-2 border border-gray-300 dark:border-[#474747] rounded text-gray-700 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e]"
                   >
                     <X className="w-4 h-4" />
                   </button>
                 </form>
               ) : (
                 <div className="flex justify-between items-center">
-                  <div className="text-gray-900 dark:text-gray-100">{user.name}</div>
+                  <div className="text-gray-900 dark:text-[#d4d4d4]">{user.name}</div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
                         setEditingUser(user);
                         setEditUserName(user.name);
                       }}
-                      className="p-1 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      className="p-1 text-gray-500 dark:text-[#858585] hover:text-gray-700 dark:hover:text-[#d4d4d4]"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>

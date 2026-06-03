@@ -88,19 +88,19 @@ export default function DocumentPanel() {
   };
 
   return (
-    <div className={`w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-full transition-all duration-200 ${expanded ? '' : 'h-[56px] min-h-0 overflow-hidden'}`}>
+    <div className={`w-80 bg-white dark:bg-[#252526] border-r border-gray-200 dark:border-[#3c3c3c] flex flex-col h-full transition-all duration-200 ${expanded ? '' : 'h-[56px] min-h-0 overflow-hidden'}`}>
       {/* Header */}
       <div
-        className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between cursor-pointer select-none"
+        className="p-4 border-b border-gray-200 dark:border-[#3c3c3c] flex items-center justify-between cursor-pointer select-none"
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-center space-x-2">
           <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Tài liệu</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-[#d4d4d4]">Tài liệu</h2>
         </div>
         {expanded
-          ? <ChevronUp className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-          : <ChevronDown className="w-5 h-5 text-gray-400 dark:text-gray-500" />}
+          ? <ChevronUp className="w-5 h-5 text-gray-400 dark:text-[#858585]" />
+          : <ChevronDown className="w-5 h-5 text-gray-400 dark:text-[#858585]" />}
       </div>
 
       {expanded && (
@@ -108,21 +108,21 @@ export default function DocumentPanel() {
           {/* Documents List */}
           <div className="flex-1 overflow-y-auto">
             {documents.length > 0 ? (
-              <div className="divide-y divide-gray-100 dark:divide-gray-700">
+              <div className="divide-y divide-gray-100 dark:divide-[#3c3c3c]">
                 {documents.slice().reverse().map(doc => (
-                  <div key={doc.id} className="p-3 hover:bg-gray-50 dark:hover:bg-gray-700 relative group">
+                  <div key={doc.id} className="p-3 hover:bg-gray-50 dark:hover:bg-[#2a2d2e] relative group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        <div className="text-sm text-gray-500 dark:text-[#858585] mb-1">
                           {format(new Date(doc.created_at), 'HH:mm dd/MM/yyyy')}
                         </div>
-                        <div className="text-gray-800 dark:text-gray-200 text-sm whitespace-pre-wrap break-words">
+                        <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words">
                           {doc.detail}
                         </div>
                       </div>
                       <button
                         onClick={() => handleDelete(doc.id)}
-                        className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/40 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-opacity mt-0.5"
+                        className="opacity-0 group-hover:opacity-100 shrink-0 p-1 rounded hover:bg-red-100 dark:hover:bg-[#2d1010] text-red-400 hover:text-red-600 dark:hover:text-red-400 transition-opacity mt-0.5"
                         title="Xóa tài liệu"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -133,21 +133,21 @@ export default function DocumentPanel() {
                 <div ref={messagesEndRef} />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 dark:text-gray-400 text-sm">
+              <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#858585] text-sm">
                 Chưa có tài liệu nào
               </div>
             )}
           </div>
 
           {/* Input Form */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-t border-gray-200 dark:border-[#3c3c3c]">
             <form onSubmit={handleSubmit} className="space-y-3">
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder="Nhập tên tài liệu và link..."
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 dark:text-gray-100 dark:bg-gray-700 placeholder-gray-400 dark:placeholder-gray-500"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#474747] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 dark:text-[#d4d4d4] bg-white dark:bg-[#2d2d30] placeholder-gray-400 dark:placeholder-[#858585]"
                 disabled={isLoading}
               />
               <button
