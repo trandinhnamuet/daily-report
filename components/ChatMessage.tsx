@@ -32,20 +32,23 @@ const STATUS_CFG = {
   note: {
     label: 'Ghi chú',
     Icon: StickyNote,
-    card:   'bg-white border-gray-200 dark:bg-[#1e1e1e] dark:border-[#3c3c3c]',
-    btn:    'bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-[#2d2d30] dark:text-[#858585] dark:hover:bg-[#37373d]',
+    card:    'border-gray-200 dark:border-[#3c3c3c]',
+    content: 'bg-white dark:bg-[#1e1e1e]',
+    strip:   'bg-gray-100 text-gray-400 border-l border-l-gray-200 hover:bg-gray-200 dark:bg-[#252525] dark:text-[#6b6b6b] dark:border-l-[#3c3c3c] dark:hover:bg-[#2a2d2e]',
   },
   todo: {
     label: 'Todo',
     Icon: Clock,
-    card:   'bg-red-50 border-red-200 dark:bg-[#2a0f0f] dark:border-[#7f1d1d]',
-    btn:    'bg-red-500 text-white hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-600',
+    card:    'border-red-300 dark:border-[#7f1d1d]',
+    content: 'bg-red-50 dark:bg-[#2a0f0f]',
+    strip:   'bg-red-500 text-white border-l border-l-red-400 hover:bg-red-600 dark:bg-[#7f1d1d] dark:border-l-[#991b1b] dark:hover:bg-[#991b1b]',
   },
   done: {
     label: 'Done',
     Icon: CheckCircle2,
-    card:   'bg-green-50 border-green-200 dark:bg-[#0a1f14] dark:border-[#166534]',
-    btn:    'bg-green-500 text-white hover:bg-green-600 dark:bg-green-700 dark:hover:bg-green-600',
+    card:    'border-green-300 dark:border-[#166534]',
+    content: 'bg-green-50 dark:bg-[#0a1f14]',
+    strip:   'bg-green-500 text-white border-l border-l-green-400 hover:bg-green-600 dark:bg-[#14532d] dark:border-l-[#166534] dark:hover:bg-[#166534]',
   },
 } as const;
 
@@ -73,56 +76,62 @@ export default function ChatMessage({ report, users, status, onDelete, onStatusC
   }, [menuOpen]);
 
   return (
-    <div className={`flex flex-col p-4 rounded-lg mb-2 border ${cfg.card}`}>
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2 min-w-0">
-          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-semibold">{avatarChar}</span>
-          </div>
-          <span className="font-medium text-gray-900 dark:text-[#d4d4d4] truncate">{displayName}</span>
-          <span className="text-sm text-gray-500 dark:text-[#858585] whitespace-nowrap">{formattedTime}</span>
-        </div>
+    <div className={`flex mb-2 rounded-lg border overflow-hidden ${cfg.card}`}>
 
-        {/* Three-dot menu */}
-        <div className="relative shrink-0 ml-2" ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(o => !o)}
-            className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-[#2a2d2e] text-gray-400 dark:text-[#858585] hover:text-gray-600 dark:hover:text-[#d4d4d4] transition-colors"
-            title="Tùy chọn"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-20 overflow-hidden">
-              <button
-                onClick={() => { setMenuOpen(false); onDelete(report.id); }}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors"
-              >
-                <Trash2 className="w-4 h-4" />
-                Xóa báo cáo
-              </button>
+      {/* Left: message content */}
+      <div className={`flex-1 p-4 min-w-0 ${cfg.content}`}>
+        {/* Header row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2 min-w-0">
+            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-white text-sm font-semibold">{avatarChar}</span>
             </div>
-          )}
+            <span className="font-medium text-gray-900 dark:text-[#d4d4d4] truncate">{displayName}</span>
+            <span className="text-sm text-gray-500 dark:text-[#858585] whitespace-nowrap">{formattedTime}</span>
+          </div>
+
+          {/* Three-dot menu */}
+          <div className="relative shrink-0 ml-2" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 dark:text-[#858585] hover:text-gray-600 dark:hover:text-[#d4d4d4] transition-colors"
+              title="Tùy chọn"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={() => { setMenuOpen(false); onDelete(report.id); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Xóa báo cáo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Message body */}
+        <div className="ml-10 mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap">
+          {report.message}
         </div>
       </div>
 
-      {/* Message body */}
-      <div className="ml-10 mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap">
-        {report.message}
-      </div>
-
-      {/* Status cycling button */}
-      <div className="ml-10 mt-3">
-        <button
-          onClick={() => onStatusChange(report.id, CYCLE[status])}
-          className={`w-full py-3 px-4 rounded-lg font-semibold text-sm flex items-center justify-center gap-2 transition-all duration-150 ${cfg.btn}`}
-        >
-          <StatusIcon className="w-4 h-4" />
+      {/* Right: status strip — full height, không tăng height card */}
+      <button
+        onClick={() => onStatusChange(report.id, CYCLE[status])}
+        className={`w-12 shrink-0 flex flex-col items-center justify-center gap-1 transition-colors ${cfg.strip}`}
+        title={`${cfg.label} — click để chuyển trạng thái`}
+      >
+        <StatusIcon className="w-5 h-5" />
+        <span className="[writing-mode:vertical-lr] text-[10px] font-semibold leading-none">
           {cfg.label}
-        </button>
-      </div>
+        </span>
+      </button>
+
     </div>
   );
 }
