@@ -137,6 +137,13 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [scrollTrigger]);
 
+  // Khi filter thay đổi → kéo xuống report mới nhất (bỏ qua lần mount đầu)
+  const isFirstFilterRender = useRef(true);
+  useEffect(() => {
+    if (isFirstFilterRender.current) { isFirstFilterRender.current = false; return; }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+  }, [filterStatus, filterUserId, filterDate]);
+
   useEffect(() => { localStorage.setItem(DRAFT_KEY, message); }, [message]);
 
   const fetchUsers = async () => {
