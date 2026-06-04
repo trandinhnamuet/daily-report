@@ -35,6 +35,7 @@ interface Report {
   created_at: string;
   user_name: string;
   user_id: number;
+  status: Status;
 }
 
 export default function Home() {
@@ -51,7 +52,6 @@ export default function Home() {
     try { const r = sessionStorage.getItem('cache_reports'); return r ? JSON.parse(r) : []; }
     catch { return []; }
   });
-  const [reportStatuses, setReportStatuses] = useState<Record<number, Status>>({});
   const DRAFT_KEY = 'draft_report';
   const [message, setMessage] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -92,7 +92,7 @@ export default function Home() {
     .filter(r => {
       const byUser   = filterUserId === 'all' ? true : r.user_id === filterUserId;
       const byDate   = filterDate   === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
-      const byStatus = filterStatus === 'all' ? true : (reportStatuses[r.id] ?? 'note') === filterStatus;
+      const byStatus = filterStatus === 'all' ? true : (r.status ?? 'note') === filterStatus;
       return byUser && byDate && byStatus;
     })
     .slice()
@@ -159,10 +159,9 @@ export default function Home() {
     setHasCheckedUser(true);
   }, [users, hasCheckedUser, resetCurrentUser, setCurrentUser]);
 
-  // Chỉ scroll khi có report mới hoặc load lần đầu — không scroll khi đổi status/theme
+  // Scroll xuống tin nhắn mới nhất — dùng 'instant' để không bị flash từ đầu trang
   useEffect(() => {
-    if (scrollTrigger === 0) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [scrollTrigger]);
 
   useEffect(() => {
@@ -233,10 +232,9 @@ export default function Home() {
     try {
       const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        setReports(prev => prev.filter(r => r.id !== id));
-        setReportStatuses(prev => {
-          const next = { ...prev };
-          delete next[id];
+        setReports(prev => {
+          const next = prev.filter(r => r.id !== id);
+          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
           return next;
         });
       }
@@ -245,8 +243,23 @@ export default function Home() {
     }
   };
 
-  const handleStatusChange = (id: number, status: Status) => {
-    setReportStatuses(prev => ({ ...prev, [id]: status }));
+  const handleStatusChange = async (id: number, status: Status) => {
+    // Optimistic update ngay lập tức
+    setReports(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, status } : r);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      return next;
+    });
+    // Lưu vào DB
+    try {
+      await fetch(`/api/reports/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+    } catch (err) {
+      console.error('updateStatus error:', err);
+    }
   };
 
   const isReadOnly = !currentUserId;
@@ -291,7 +304,7 @@ export default function Home() {
                   key={r.id}
                   report={r}
                   users={users}
-                  status={reportStatuses[r.id] ?? 'note'}
+                  status={r.status ?? 'note'}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
                 />

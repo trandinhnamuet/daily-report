@@ -11,10 +11,11 @@ export async function GET(request: NextRequest) {
 
     const result = await pool.query(
       `
-      SELECT 
+      SELECT
         dr.id,
         dr.message,
         dr.created_at,
+        dr.status,
         u.name AS user_name,
         u.id AS user_id
       FROM daily_report.daily_report dr
@@ -45,7 +46,7 @@ const insertResult = await pool.query(
   `
   INSERT INTO daily_report.daily_report (user_id, message)
   VALUES ($1, $2)
-  RETURNING id, user_id, message, created_at
+  RETURNING id, user_id, message, created_at, status
 `,
   [Number(user_id), message.trim()]
 );
