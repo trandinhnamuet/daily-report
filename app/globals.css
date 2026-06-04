@@ -2,6 +2,21 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Respect iOS / Android home-indicator safe area on the bottom nav */
+.safe-area-pb {
+  padding-bottom: env(safe-area-inset-bottom);
 }

@@ -256,7 +256,7 @@ export default function Home() {
 
         {/* Center: Reports */}
         <div className={`
-          flex flex-col bg-white dark:bg-[#1e1e1e]
+          flex flex-col bg-white dark:bg-[#1e1e1e] min-w-0
           ${activeTab === 'reports' ? 'flex-1 min-h-0' : 'hidden'}
           lg:flex lg:flex-1 lg:min-h-0
         `}>
@@ -381,8 +381,8 @@ export default function Home() {
       </div>
 
       {/* ── Bottom tab nav (mobile only) ── */}
-      <div className="lg:hidden shrink-0 bg-white dark:bg-[#252526] border-t border-gray-200 dark:border-[#3c3c3c]">
-        <div className="flex h-14 safe-area-pb">
+      <div className="lg:hidden shrink-0 safe-area-pb bg-white dark:bg-[#252526] border-t border-gray-200 dark:border-[#3c3c3c]">
+        <div className="flex h-14">
           <button onClick={() => setActiveTab('documents')} className={tabCls('documents')}>
             <FileText className="w-5 h-5" />
             Tài liệu

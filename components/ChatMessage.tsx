@@ -115,7 +115,7 @@ export default function ChatMessage({ report, users, status, onDelete, onStatusC
         </div>
 
         {/* Message body */}
-        <div className="ml-10 mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap">
+        <div className="ml-10 mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {report.message}
         </div>
       </div>
