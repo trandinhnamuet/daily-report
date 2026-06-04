@@ -7,6 +7,17 @@ import Link from 'next/link';
 
 import UserSelector from '../components/UserSelector';
 import ChatMessage, { type Status } from '../components/ChatMessage';
+
+type FilterStatus = 'all' | 'todo' | 'done' | 'note';
+const FILTER_CYCLE: Record<FilterStatus, FilterStatus> = {
+  all: 'todo', todo: 'done', done: 'note', note: 'all',
+};
+const FILTER_CFG: Record<FilterStatus, { label: string; cls: string }> = {
+  all:  { label: 'Tất cả',  cls: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] dark:hover:bg-[#474747]' },
+  todo: { label: 'Todo',    cls: 'bg-red-100 text-red-600 hover:bg-red-200 dark:bg-[#3d1515] dark:text-[#f87171] dark:hover:bg-[#4a1a1a]' },
+  done: { label: 'Done',    cls: 'bg-green-100 text-green-600 hover:bg-green-200 dark:bg-[#0d3320] dark:text-[#4ade80] dark:hover:bg-[#103d26]' },
+  note: { label: 'Ghi chú', cls: 'bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-[#001c3a] dark:text-[#60a5fa] dark:hover:bg-[#002040]' },
+};
 import DocumentPanel from '../components/DocumentPanel';
 import NotesPanel from '../components/NotesPanel';
 
@@ -55,6 +66,7 @@ export default function Home() {
 
   const [filterUserId, setFilterUserId] = useState<number | 'all'>('all');
   const [filterDate, setFilterDate] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [dateError, setDateError] = useState('');
 
   const today = new Date().toISOString().slice(0, 10);
@@ -78,10 +90,10 @@ export default function Home() {
 
   const displayReports = reports
     .filter(r => {
-      const byUser = filterUserId === 'all' ? true : r.user_id === filterUserId;
-      const byDate =
-        filterDate === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
-      return byUser && byDate;
+      const byUser   = filterUserId === 'all' ? true : r.user_id === filterUserId;
+      const byDate   = filterDate   === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
+      const byStatus = filterStatus === 'all' ? true : (reportStatuses[r.id] ?? 'note') === filterStatus;
+      return byUser && byDate && byStatus;
     })
     .slice()
     .sort(
@@ -319,6 +331,15 @@ export default function Home() {
               )}
 
               <div className="flex items-center gap-3">
+                {/* Status filter */}
+                <button
+                  onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
+                  className={`px-3 py-2 rounded-xl text-sm font-medium transition-colors whitespace-nowrap ${FILTER_CFG[filterStatus].cls}`}
+                  title="Lọc theo trạng thái (click để chuyển)"
+                >
+                  {FILTER_CFG[filterStatus].label}
+                </button>
+
                 <select
                   value={filterUserId}
                   onChange={e =>
