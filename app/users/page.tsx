@@ -98,28 +98,28 @@ export default function UsersPage() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#1e1e1e]">
       <div className="bg-white dark:bg-[#3c3c3c] border-b border-gray-200 dark:border-[#474747]">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link
               href="/"
-              className="flex items-center text-gray-600 dark:text-[#cccccc] hover:text-gray-900 dark:hover:text-[#d4d4d4]"
+              className="flex items-center shrink-0 text-gray-600 dark:text-[#cccccc] hover:text-gray-900 dark:hover:text-[#d4d4d4]"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Quay lại Chat
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              <span className="hidden sm:inline">Quay lại</span>
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-[#d4d4d4]">Quản lý Users</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] truncate">Quản lý Users</h1>
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm shrink-0"
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Thêm User
+            <Plus className="w-4 h-4" />
+            <span className="hidden xs:inline sm:inline">Thêm User</span>
           </button>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8">
         {showAddForm && (
           <form
             onSubmit={handleAddUser}

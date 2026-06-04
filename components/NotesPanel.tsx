@@ -92,7 +92,7 @@ export default function NotesPanel() {
   };
 
   return (
-    <div className={`w-80 bg-white dark:bg-[#252526] border-l border-gray-200 dark:border-[#3c3c3c] flex flex-col h-full transition-all duration-200 ${expanded ? '' : 'h-[56px] min-h-0 overflow-hidden'}`}>
+    <div className={`w-full bg-white dark:bg-[#252526] flex flex-col h-full transition-all duration-200 ${expanded ? '' : 'h-[56px] min-h-0 overflow-hidden'}`}>
       {/* Header */}
       <div
         className="p-4 border-b border-gray-200 dark:border-[#3c3c3c] flex items-center justify-between cursor-pointer select-none"
