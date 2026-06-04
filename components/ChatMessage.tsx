@@ -18,10 +18,13 @@ interface Report {
   user_id: number;
 }
 
+type FontSize = 'xs' | 'sm' | 'base';
+
 interface ChatMessageProps {
   report: Report;
   users: User[];
   status: Status;
+  fontSize?: FontSize;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: Status) => void;
 }
@@ -52,7 +55,13 @@ const STATUS_CFG = {
   },
 } as const;
 
-export default function ChatMessage({ report, users, status, onDelete, onStatusChange }: ChatMessageProps) {
+const FONT_CLS: Record<FontSize, string> = {
+  xs:   'text-xs  sm:text-sm',
+  sm:   'text-sm  sm:text-sm',
+  base: 'text-base sm:text-sm',
+};
+
+export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -115,7 +124,7 @@ export default function ChatMessage({ report, users, status, onDelete, onStatusC
         </div>
 
         {/* Message body */}
-        <div className="ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <div className={`ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${FONT_CLS[fontSize]}`}>
           {report.message}
         </div>
       </div>

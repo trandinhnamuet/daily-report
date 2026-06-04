@@ -65,6 +65,18 @@ export default function Home() {
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [dateError, setDateError] = useState('');
 
+  type FontSize = 'xs' | 'sm' | 'base';
+  const [fontSize, setFontSize] = useState<FontSize>(() => {
+    if (typeof window === 'undefined') return 'xs';
+    return (localStorage.getItem('msg_font_size') as FontSize) ?? 'xs';
+  });
+  const cycleFontSize = () => setFontSize(prev => {
+    const next: FontSize = prev === 'xs' ? 'sm' : prev === 'sm' ? 'base' : 'xs';
+    localStorage.setItem('msg_font_size', next);
+    return next;
+  });
+  const fontSizeLabel: Record<FontSize, string> = { xs: 'Nhỏ', sm: 'Vừa', base: 'To' };
+
   const [activeTab, setActiveTab] = useState<ActiveTab>('reports');
 
   const today = new Date().toISOString().slice(0, 10);
@@ -224,6 +236,16 @@ export default function Home() {
             Daily Report
           </h1>
           <div className="flex items-center gap-1">
+            {/* Font size toggle — mobile only */}
+            <button
+              onClick={cycleFontSize}
+              className="lg:hidden p-1.5 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors flex flex-col items-center leading-none"
+              title={`Cỡ chữ: ${fontSizeLabel[fontSize]}`}
+            >
+              <span className={`font-bold leading-none ${fontSize === 'xs' ? 'text-xs' : fontSize === 'sm' ? 'text-sm' : 'text-base'}`}>A</span>
+              <span className="text-[8px] leading-none mt-0.5 opacity-70">{fontSizeLabel[fontSize]}</span>
+            </button>
+
             <button
               onClick={toggleTheme}
               className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors"
@@ -269,6 +291,7 @@ export default function Home() {
                   report={r}
                   users={users}
                   status={r.status ?? 'note'}
+                  fontSize={fontSize}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
                 />
