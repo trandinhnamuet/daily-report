@@ -76,18 +76,18 @@ export default function ChatMessage({ report, users, status, onDelete, onStatusC
   }, [menuOpen]);
 
   return (
-    <div className={`flex mb-2 rounded-lg border overflow-hidden ${cfg.card}`}>
+    <div className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card}`}>
 
       {/* Left: message content */}
-      <div className={`flex-1 p-4 min-w-0 ${cfg.content}`}>
+      <div className={`flex-1 p-2.5 sm:p-4 min-w-0 ${cfg.content}`}>
         {/* Header row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 min-w-0">
-            <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
-              <span className="text-white text-sm font-semibold">{avatarChar}</span>
+          <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
+            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+              <span className="text-white text-xs sm:text-sm font-semibold">{avatarChar}</span>
             </div>
-            <span className="font-medium text-gray-900 dark:text-[#d4d4d4] truncate">{displayName}</span>
-            <span className="text-sm text-gray-500 dark:text-[#858585] whitespace-nowrap">{formattedTime}</span>
+            <span className="font-medium text-xs sm:text-sm text-gray-900 dark:text-[#d4d4d4] truncate">{displayName}</span>
+            <span className="text-xs text-gray-500 dark:text-[#858585] whitespace-nowrap">{formattedTime}</span>
           </div>
 
           {/* Three-dot menu */}
@@ -115,19 +115,19 @@ export default function ChatMessage({ report, users, status, onDelete, onStatusC
         </div>
 
         {/* Message body */}
-        <div className="ml-10 mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        <div className="ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-xs sm:text-sm text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
           {report.message}
         </div>
       </div>
 
-      {/* Right: status strip — full height, không tăng height card */}
+      {/* Right: status strip */}
       <button
         onClick={() => onStatusChange(report.id, CYCLE[status])}
-        className={`w-12 shrink-0 flex flex-col items-center justify-center gap-1 transition-colors ${cfg.strip}`}
+        className={`w-9 sm:w-12 shrink-0 flex flex-col items-center justify-center gap-0.5 sm:gap-1 transition-colors ${cfg.strip}`}
         title={`${cfg.label} — click để chuyển trạng thái`}
       >
-        <StatusIcon className="w-5 h-5" />
-        <span className="[writing-mode:vertical-lr] text-[10px] font-semibold leading-none">
+        <StatusIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
+        <span className="[writing-mode:vertical-lr] text-[8px] sm:text-[10px] font-semibold leading-none">
           {cfg.label}
         </span>
       </button>

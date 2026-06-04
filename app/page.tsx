@@ -219,23 +219,23 @@ export default function Home() {
 
       {/* ── Header ── */}
       <div className="bg-white dark:bg-[#3c3c3c] shadow-sm border-b border-gray-200 dark:border-[#474747] shrink-0">
-        <div className="px-3 sm:px-4 py-3 flex justify-between items-center">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] leading-tight">
+        <div className="px-3 sm:px-4 py-1.5 sm:py-3 flex justify-between items-center">
+          <h1 className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] leading-tight">
             Daily Report
           </h1>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors"
               title={theme === 'light' ? 'Dark mode' : 'Light mode'}
             >
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              {theme === 'light' ? <Moon className="w-4 h-4 sm:w-5 sm:h-5" /> : <Sun className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
             <Link
               href="/users"
-              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs sm:text-sm"
             >
-              <Users className="w-4 h-4 shrink-0" />
+              <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="hidden sm:inline">Quản lý Users</span>
             </Link>
           </div>
@@ -261,7 +261,7 @@ export default function Home() {
           lg:flex lg:flex-1 lg:min-h-0
         `}>
           {/* Messages list */}
-          <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-4">
             {displayReports.length ? (
               displayReports.map(r => (
                 <ChatMessage
@@ -282,9 +282,9 @@ export default function Home() {
           </div>
 
           {/* Compose + filters */}
-          <div className="border-t border-gray-200 dark:border-[#3c3c3c] p-3 sm:p-4 shrink-0">
+          <div className="border-t border-gray-200 dark:border-[#3c3c3c] p-2 sm:p-3 lg:p-4 shrink-0">
             {/* Row 1: user info */}
-            <div className="flex flex-wrap justify-between items-center gap-2 text-sm text-gray-600 dark:text-[#858585] mb-2">
+            <div className="flex flex-wrap justify-between items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-600 dark:text-[#858585] mb-1.5 sm:mb-2">
               {currentUserId ? (
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="truncate">
@@ -350,21 +350,21 @@ export default function Home() {
             </div>
 
             {/* Compose form */}
-            <form onSubmit={handleSubmit} className="flex gap-2">
+            <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder={isReadOnly ? 'Bạn đang xem (chưa chọn user)' : 'Nhập báo cáo...'}
-                rows={2}
-                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-3 py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-sm"
+                placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập báo cáo...'}
+                rows={1}
+                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm"
                 disabled={isReadOnly || isLoading}
               />
               <button
                 type="submit"
                 disabled={isReadOnly || !message.trim() || isLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 shrink-0"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 shrink-0"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </form>
           </div>
@@ -382,7 +382,7 @@ export default function Home() {
 
       {/* ── Bottom tab nav (mobile only) ── */}
       <div className="lg:hidden shrink-0 safe-area-pb bg-white dark:bg-[#252526] border-t border-gray-200 dark:border-[#3c3c3c]">
-        <div className="flex h-14">
+        <div className="flex h-12 sm:h-14">
           <button onClick={() => setActiveTab('documents')} className={tabCls('documents')}>
             <FileText className="w-5 h-5" />
             Tài liệu
