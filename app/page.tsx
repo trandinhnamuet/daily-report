@@ -27,8 +27,19 @@ interface Report {
 }
 
 export default function Home() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [reports, setReports] = useState<Report[]>([]);
+  const REPORTS_CACHE = 'cache_reports';
+  const USERS_CACHE   = 'cache_users';
+
+  const [users, setUsers] = useState<User[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const r = sessionStorage.getItem('cache_users'); return r ? JSON.parse(r) : []; }
+    catch { return []; }
+  });
+  const [reports, setReports] = useState<Report[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try { const r = sessionStorage.getItem('cache_reports'); return r ? JSON.parse(r) : []; }
+    catch { return []; }
+  });
   const [reportStatuses, setReportStatuses] = useState<Record<number, Status>>({});
   const DRAFT_KEY = 'draft_report';
   const [message, setMessage] = useState(() => {
@@ -58,6 +69,8 @@ export default function Home() {
   } = useCurrentUser();
 
   const { theme, toggleTheme } = useTheme();
+
+  const [scrollTrigger, setScrollTrigger] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -134,9 +147,11 @@ export default function Home() {
     setHasCheckedUser(true);
   }, [users, hasCheckedUser, resetCurrentUser, setCurrentUser]);
 
+  // Chỉ scroll khi có report mới hoặc load lần đầu — không scroll khi đổi status/theme
   useEffect(() => {
+    if (scrollTrigger === 0) return;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [displayReports]);
+  }, [scrollTrigger]);
 
   useEffect(() => {
     localStorage.setItem(DRAFT_KEY, message);
@@ -148,9 +163,10 @@ export default function Home() {
       if (!res.ok) throw new Error('fetch users failed');
       const data = await res.json();
       setUsers(data);
+      sessionStorage.setItem(USERS_CACHE, JSON.stringify(data));
     } catch (err) {
       console.error('fetchUsers error:', err);
-      setUsers([]);
+      // Giữ data cũ, không clear
     }
   };
 
@@ -160,10 +176,12 @@ export default function Home() {
       if (!res.ok) throw new Error('fetch reports failed');
       const data = await res.json();
       setReports(data);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
       if (data.length) setReporterId(data[0].user_id);
+      setScrollTrigger(n => n + 1); // scroll xuống cuối sau khi load xong
     } catch (err) {
       console.error('fetchReports error:', err);
-      setReports([]);
+      // Giữ data cũ, không clear
     }
   };
 
@@ -184,10 +202,15 @@ export default function Home() {
 
       if (res.ok) {
         const newReport = await res.json();
-        setReports(prev => [newReport, ...prev]);
+        setReports(prev => {
+          const next = [newReport, ...prev];
+          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+          return next;
+        });
         setReporterId(newReport.user_id);
         setMessage('');
         localStorage.removeItem(DRAFT_KEY);
+        setScrollTrigger(n => n + 1); // scroll xuống report mới gửi
       }
     } finally {
       setIsLoading(false);

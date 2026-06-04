@@ -20,7 +20,11 @@ export default function NotesPanel() {
     return '';
   });
   const [isLoading, setIsLoading] = useState(false);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const saved = localStorage.getItem('notespanel_expanded');
+    return saved === null ? true : saved === 'true';
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -92,7 +96,11 @@ export default function NotesPanel() {
       {/* Header */}
       <div
         className="p-4 border-b border-gray-200 dark:border-[#3c3c3c] flex items-center justify-between cursor-pointer select-none"
-        onClick={() => setExpanded(v => !v)}
+        onClick={() => setExpanded(v => {
+          const next = !v;
+          localStorage.setItem('notespanel_expanded', String(next));
+          return next;
+        })}
       >
         <div className="flex items-center space-x-2">
           <StickyNote className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
