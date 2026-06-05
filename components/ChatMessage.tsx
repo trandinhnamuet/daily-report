@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2 } from 'lucide-react';
+import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock } from 'lucide-react';
 
 export type Status = 'note' | 'todo' | 'done';
 
@@ -16,6 +16,9 @@ interface Report {
   message: string;
   created_at: string;
   user_id: number;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  deadline: string | null;
 }
 
 type FontSize = 'xs' | 'sm' | 'base';
@@ -27,6 +30,8 @@ interface ChatMessageProps {
   fontSize?: FontSize;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: Status) => void;
+  onAssigneeChange: (id: number, assignee_id: number | null, assignee_name: string | null) => void;
+  onDeadlineChange: (id: number, deadline: string | null) => void;
 }
 
 const CYCLE: Record<Status, Status> = { note: 'todo', todo: 'done', done: 'note' };
@@ -61,8 +66,10 @@ const FONT_CLS: Record<FontSize, string> = {
   base: 'text-base sm:text-sm',
 };
 
-export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange }: ChatMessageProps) {
+export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange, onAssigneeChange, onDeadlineChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [editingAssignee, setEditingAssignee] = useState(false);
+  const [editingDeadline, setEditingDeadline] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const formattedTime = format(new Date(report.created_at), 'HH:mm dd/MM/yyyy');
@@ -72,6 +79,31 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
 
   const cfg = STATUS_CFG[status];
   const StatusIcon = cfg.Icon;
+
+  const handleAssigneeChange = async (assigneeId: number | null) => {
+    setEditingAssignee(false);
+    const assigneeName = assigneeId ? (users.find(u => u.id === assigneeId)?.name ?? null) : null;
+    onAssigneeChange(report.id, assigneeId, assigneeName);
+    try {
+      await fetch(`/api/reports/${report.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignee_id: assigneeId }),
+      });
+    } catch { /* optimistic update already applied */ }
+  };
+
+  const handleDeadlineChange = async (deadline: string) => {
+    setEditingDeadline(false);
+    onDeadlineChange(report.id, deadline || null);
+    try {
+      await fetch(`/api/reports/${report.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deadline: deadline || null }),
+      });
+    } catch { /* optimistic update already applied */ }
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -126,6 +158,61 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
         {/* Message body */}
         <div className={`ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${FONT_CLS[fontSize]}`}>
           {report.message}
+        </div>
+
+        {/* Assignee + deadline row */}
+        <div className="ml-7 sm:ml-10 mt-1.5 flex flex-wrap items-center gap-2">
+          {/* Assignee */}
+          {editingAssignee ? (
+            <select
+              autoFocus
+              defaultValue={report.assignee_id ?? ''}
+              onBlur={e => handleAssigneeChange(e.target.value ? Number(e.target.value) : null)}
+              onChange={e => handleAssigneeChange(e.target.value ? Number(e.target.value) : null)}
+              className="text-xs border border-purple-300 dark:border-[#6b3fa0] rounded px-1.5 py-0.5 bg-white dark:bg-[#2a1f3d] text-gray-900 dark:text-[#c084fc]"
+            >
+              <option value="">Không có người nhận</option>
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          ) : (
+            <button
+              onClick={() => setEditingAssignee(true)}
+              className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${
+                report.assignee_id
+                  ? 'bg-purple-100 text-purple-700 dark:bg-[#2a1f3d] dark:text-[#c084fc] hover:bg-purple-200 dark:hover:bg-[#3a2a55]'
+                  : 'bg-gray-100 text-gray-400 dark:bg-[#2d2d2d] dark:text-[#6b6b6b] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
+              }`}
+              title="Gán người nhận"
+            >
+              <UserCheck className="w-3 h-3" />
+              {report.assignee_name ?? 'Gán người nhận'}
+            </button>
+          )}
+
+          {/* Deadline */}
+          {editingDeadline ? (
+            <input
+              type="date"
+              autoFocus
+              defaultValue={report.deadline?.slice(0, 10) ?? ''}
+              onBlur={e => handleDeadlineChange(e.target.value)}
+              onChange={e => handleDeadlineChange(e.target.value)}
+              className="text-xs border border-orange-300 dark:border-[#7c4a00] rounded px-1.5 py-0.5 bg-white dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c]"
+            />
+          ) : (
+            <button
+              onClick={() => setEditingDeadline(true)}
+              className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${
+                report.deadline
+                  ? 'bg-orange-100 text-orange-700 dark:bg-[#2a1a00] dark:text-[#fb923c] hover:bg-orange-200 dark:hover:bg-[#3a2500]'
+                  : 'bg-gray-100 text-gray-400 dark:bg-[#2d2d2d] dark:text-[#6b6b6b] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
+              }`}
+              title="Đặt deadline"
+            >
+              <CalendarClock className="w-3 h-3" />
+              {report.deadline ? format(new Date(report.deadline), 'dd/MM/yyyy') : 'Deadline'}
+            </button>
+          )}
         </div>
       </div>
 

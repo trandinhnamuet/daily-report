@@ -34,6 +34,9 @@ interface Report {
   user_name: string;
   user_id: number;
   status: Status;
+  assignee_id: number | null;
+  assignee_name: string | null;
+  deadline: string | null;
 }
 
 export default function Home() {
@@ -61,9 +64,13 @@ export default function Home() {
   const [hasCheckedUser, setHasCheckedUser] = useState(false);
 
   const [filterUserId, setFilterUserId] = useState<number | 'all'>('all');
+  const [filterAssigneeId, setFilterAssigneeId] = useState<number | 'all'>('all');
   const [filterDate, setFilterDate] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [dateError, setDateError] = useState('');
+
+  const [composeAssigneeId, setComposeAssigneeId] = useState<number | ''>('');
+  const [composeDeadline, setComposeDeadline] = useState<string>('');
 
   type FontSize = 'xs' | 'sm' | 'base';
   const [fontSize, setFontSize] = useState<FontSize>(() => {
@@ -94,10 +101,11 @@ export default function Home() {
 
   const displayReports = reports
     .filter(r => {
-      const byUser   = filterUserId === 'all' ? true : r.user_id === filterUserId;
-      const byDate   = filterDate   === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
-      const byStatus = filterStatus === 'all' ? true : (r.status ?? 'note') === filterStatus;
-      return byUser && byDate && byStatus;
+      const byUser     = filterUserId     === 'all' ? true : r.user_id === filterUserId;
+      const byAssignee = filterAssigneeId === 'all' ? true : r.assignee_id === filterAssigneeId;
+      const byDate     = filterDate       === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
+      const byStatus   = filterStatus     === 'all' ? true : (r.status ?? 'note') === filterStatus;
+      return byUser && byAssignee && byDate && byStatus;
     })
     .slice()
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -176,7 +184,12 @@ export default function Home() {
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: currentUserId, message: message.trim() }),
+        body: JSON.stringify({
+          user_id: currentUserId,
+          message: message.trim(),
+          assignee_id: composeAssigneeId || null,
+          deadline: composeDeadline || null,
+        }),
       });
       if (res.ok) {
         const newReport = await res.json();
@@ -187,6 +200,8 @@ export default function Home() {
         });
         setReporterId(newReport.user_id);
         setMessage('');
+        setComposeAssigneeId('');
+        setComposeDeadline('');
         localStorage.removeItem(DRAFT_KEY);
         setScrollTrigger(n => n + 1);
       }
@@ -219,6 +234,22 @@ export default function Home() {
         body: JSON.stringify({ status }),
       });
     } catch (err) { console.error('updateStatus error:', err); }
+  };
+
+  const handleAssigneeChange = (id: number, assignee_id: number | null, assignee_name: string | null) => {
+    setReports(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, assignee_id, assignee_name } : r);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const handleDeadlineChange = (id: number, deadline: string | null) => {
+    setReports(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, deadline } : r);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      return next;
+    });
   };
 
   const isReadOnly = !currentUserId;
@@ -301,6 +332,8 @@ export default function Home() {
                   fontSize={fontSize}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
+                  onAssigneeChange={handleAssigneeChange}
+                  onDeadlineChange={handleDeadlineChange}
                 />
               ))
             ) : (
@@ -352,8 +385,22 @@ export default function Home() {
                   value={filterUserId}
                   onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                   className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 py-1.5 text-xs max-w-[130px]"
+                  title="Lọc người tạo"
                 >
-                  <option value="all">Tất cả</option>
+                  <option value="all">Tất cả (tạo bởi)</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+
+                {/* Assignee filter */}
+                <select
+                  value={filterAssigneeId}
+                  onChange={e => setFilterAssigneeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 text-xs max-w-[130px]"
+                  title="Lọc người nhận"
+                >
+                  <option value="all">Tất cả (nhận bởi)</option>
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
@@ -380,22 +427,47 @@ export default function Home() {
             </div>
 
             {/* Compose form */}
-            <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
-              <textarea
-                value={message}
-                onChange={e => setMessage(e.target.value)}
-                placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập công việc hoặc ghi chú...'}
-                rows={1}
-                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm"
-                disabled={isReadOnly || isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isReadOnly || !message.trim() || isLoading}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 shrink-0"
-              >
-                <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-1.5 sm:gap-2">
+              {/* Assignee + deadline row */}
+              <div className="flex gap-1.5 sm:gap-2">
+                <select
+                  value={composeAssigneeId}
+                  onChange={e => setComposeAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
+                  disabled={isReadOnly || isLoading}
+                  className="flex-1 border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 bg-purple-50 dark:bg-[#2a1f3d] text-gray-900 dark:text-[#c084fc] text-xs disabled:opacity-50"
+                >
+                  <option value="">Người nhận (tuỳ chọn)</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="date"
+                  value={composeDeadline}
+                  onChange={e => setComposeDeadline(e.target.value)}
+                  disabled={isReadOnly || isLoading}
+                  className="border border-orange-200 dark:border-[#7c4a00] rounded-lg px-2.5 py-1.5 bg-orange-50 dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c] text-xs w-[130px] disabled:opacity-50"
+                  title="Deadline"
+                />
+              </div>
+              {/* Message + send row */}
+              <div className="flex gap-1.5 sm:gap-2">
+                <textarea
+                  value={message}
+                  onChange={e => setMessage(e.target.value)}
+                  placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập công việc hoặc ghi chú...'}
+                  rows={1}
+                  className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm"
+                  disabled={isReadOnly || isLoading}
+                />
+                <button
+                  type="submit"
+                  disabled={isReadOnly || !message.trim() || isLoading}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 shrink-0"
+                >
+                  <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </button>
+              </div>
             </form>
           </div>
         </div>
