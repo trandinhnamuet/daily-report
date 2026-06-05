@@ -116,7 +116,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
-                  Xóa báo cáo
+                  Xóa mục này
                 </button>
               </div>
             )}

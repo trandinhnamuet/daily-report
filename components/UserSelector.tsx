@@ -79,7 +79,7 @@ export default function UserSelector({ users, onSelected }: UserSelectorProps) {
         className="w-full px-4 py-2 text-left bg-white dark:bg-[#2d2d30] border border-gray-300 dark:border-[#474747] rounded-lg shadow-sm text-gray-900 dark:text-[#d4d4d4]"
       >
         <div className="flex items-center justify-between">
-          <span>{selectedUser ? selectedUser.name : 'Chọn người báo cáo'}</span>
+          <span>{selectedUser ? selectedUser.name : 'Chọn người dùng'}</span>
           <ChevronDown className={`w-5 h-5 text-gray-400 dark:text-[#858585] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
         </div>
       </button>

@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Daily Report",
-  description: "Ghi chép và theo dõi báo cáo công việc hàng ngày",
+  title: "Task Notes",
+  description: "Ghi chú và quản lý công việc",
 };
 
 export const viewport: Viewport = {

@@ -240,7 +240,7 @@ export default function Home() {
       <div className="bg-white dark:bg-[#3c3c3c] shadow-sm border-b border-gray-200 dark:border-[#474747] shrink-0">
         <div className="px-3 sm:px-4 py-1.5 sm:py-3 flex justify-between items-center">
           <h1 className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] leading-tight">
-            Daily Report
+            Task Notes
           </h1>
           <div className="flex items-center gap-1">
             {/* Font size toggle — mobile only */}
@@ -305,7 +305,7 @@ export default function Home() {
               ))
             ) : (
               <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#858585] text-sm">
-                Không có báo cáo
+                Không có mục nào
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -332,7 +332,7 @@ export default function Home() {
                   onClick={() => setShowUserModal(true)}
                   className="text-blue-600 dark:text-blue-400 hover:underline"
                 >
-                  Chọn user để gửi báo cáo
+                  Chọn user để bắt đầu
                 </button>
               )}
 
@@ -384,7 +384,7 @@ export default function Home() {
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập báo cáo...'}
+                placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập công việc hoặc ghi chú...'}
                 rows={1}
                 className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm"
                 disabled={isReadOnly || isLoading}
@@ -419,7 +419,7 @@ export default function Home() {
           </button>
           <button onClick={() => setActiveTab('reports')} className={tabCls('reports')}>
             <MessageSquare className="w-5 h-5" />
-            Báo cáo
+            Công việc
           </button>
           <button onClick={() => setActiveTab('notes')} className={tabCls('notes')}>
             <StickyNote className="w-5 h-5" />
