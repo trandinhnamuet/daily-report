@@ -69,7 +69,7 @@ export default function UsersPage() {
       });
 
       if (res.ok) {
-        const updated = await res.json();
+        const { user: updated } = await res.json();
         setUsers(prev => prev.map(u => (u.id === updated.id ? updated : u)));
         channelRef.current?.postMessage({ type: 'user-updated', payload: updated });
         setEditingUser(null);
