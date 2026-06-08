@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { Send, Users, X, Calendar, Sun, Moon, FileText, StickyNote, MessageSquare } from 'lucide-react';
 import Link from 'next/link';
 
+import { useAutoResize } from '../hooks/useAutoResize';
 import UserSelector from '../components/UserSelector';
 import ChatMessage, { type Status } from '../components/ChatMessage';
 import DocumentPanel from '../components/DocumentPanel';
@@ -91,6 +92,7 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const messageTextareaRef = useAutoResize(message);
 
   const displayReports = reports
     .filter(r => {
@@ -382,11 +384,12 @@ export default function Home() {
             {/* Compose form */}
             <form onSubmit={handleSubmit} className="flex gap-1.5 sm:gap-2">
               <textarea
+                ref={messageTextareaRef}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập công việc hoặc ghi chú...'}
                 rows={1}
-                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm"
+                className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm overflow-y-auto"
                 disabled={isReadOnly || isLoading}
               />
               <button
