@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useAutoResize } from '../hooks/useAutoResize';
 import { Send, StickyNote, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -26,6 +27,7 @@ export default function NotesPanel() {
     return saved === null ? true : saved === 'true';
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageTextareaRef = useAutoResize(message);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -151,11 +153,12 @@ export default function NotesPanel() {
           <div className="p-4 border-t border-gray-200 dark:border-[#3c3c3c]">
             <form onSubmit={handleSubmit} className="space-y-3">
               <textarea
+                ref={messageTextareaRef}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder="Nhập ghi chú..."
                 rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#474747] rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none text-gray-900 dark:text-[#d4d4d4] bg-white dark:bg-[#2d2d30] placeholder-gray-400 dark:placeholder-[#858585]"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#474747] rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none text-gray-900 dark:text-[#d4d4d4] bg-white dark:bg-[#2d2d30] placeholder-gray-400 dark:placeholder-[#858585] overflow-y-auto"
                 disabled={isLoading}
               />
               <button
