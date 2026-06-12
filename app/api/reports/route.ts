@@ -5,13 +5,17 @@ import pool from '../../../lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = (page - 1) * limit;
+    const beforeId = searchParams.get('before_id');
     const assigneeId = searchParams.get('assignee_id');
 
     const conditions: string[] = [];
-    const values: (string | number)[] = [limit, offset];
+    const values: (string | number)[] = [limit];
+
+    if (beforeId) {
+      conditions.push(`dr.id < $${values.length + 1}`);
+      values.push(parseInt(beforeId));
+    }
 
     if (assigneeId && assigneeId !== 'all') {
       conditions.push(`dr.assignee_id = $${values.length + 1}`);
@@ -36,8 +40,8 @@ export async function GET(request: NextRequest) {
       JOIN daily_report.users u ON dr.user_id = u.id
       LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
       ${where}
-      ORDER BY dr.created_at DESC
-      LIMIT $1 OFFSET $2
+      ORDER BY dr.id DESC
+      LIMIT $1
     `,
       values
     );
