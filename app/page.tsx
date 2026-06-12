@@ -95,6 +95,8 @@ export default function Home() {
   } = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
 
+  const [filteredReports, setFilteredReports] = useState<Report[] | null>(null);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [scrollTrigger, setScrollTrigger] = useState(0);
@@ -104,14 +106,8 @@ export default function Home() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const messageTextareaRef = useAutoResize(message);
 
-  const displayReports = reports
-    .filter(r => {
-      const byUser     = filterUserId     === 'all' ? true : r.user_id === filterUserId;
-      const byAssignee = filterAssigneeId === 'all' ? true : r.assignee_id === filterAssigneeId;
-      const byDate     = filterDate       === 'all' ? true : r.created_at.slice(0, 10) === filterDate;
-      const byStatus   = filterStatus     === 'all' ? true : (r.status ?? 'note') === filterStatus;
-      return byUser && byAssignee && byDate && byStatus;
-    })
+  const displayReports = (filteredReports ?? reports)
+    .filter(r => filterStatus === 'all' ? true : (r.status ?? 'note') === filterStatus)
     .slice()
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
@@ -150,12 +146,33 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [scrollTrigger]);
 
-  // Khi filter thay đổi → kéo xuống report mới nhất (bỏ qua lần mount đầu)
+  // Status filter: client-side only → scroll ngay
   const isFirstFilterRender = useRef(true);
   useEffect(() => {
     if (isFirstFilterRender.current) { isFirstFilterRender.current = false; return; }
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-  }, [filterStatus, filterUserId, filterDate]);
+  }, [filterStatus]);
+
+  // User/assignee/date filter: fetch server-side toàn bộ lịch sử
+  useEffect(() => {
+    const hasServerFilter = filterUserId !== 'all' || filterAssigneeId !== 'all' || filterDate !== 'all';
+    if (!hasServerFilter) { setFilteredReports(null); return; }
+
+    setIsFilterLoading(true);
+    const params = new URLSearchParams();
+    if (filterUserId !== 'all') params.set('user_id', String(filterUserId));
+    if (filterAssigneeId !== 'all') params.set('assignee_id', String(filterAssigneeId));
+    if (filterDate !== 'all') params.set('date', filterDate);
+
+    fetch(`/api/reports?${params}`)
+      .then(r => r.json())
+      .then((data: Report[]) => {
+        setFilteredReports(data);
+        requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }));
+      })
+      .catch(() => {})
+      .finally(() => setIsFilterLoading(false));
+  }, [filterUserId, filterAssigneeId, filterDate]);
 
   useEffect(() => { localStorage.setItem(DRAFT_KEY, message); }, [message]);
 
@@ -256,6 +273,7 @@ export default function Home() {
           sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
           return next;
         });
+        setFilteredReports(prev => prev ? prev.filter(r => r.id !== id) : null);
       }
     } catch (err) { console.error('deleteReport error:', err); }
   };
@@ -266,6 +284,7 @@ export default function Home() {
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
       return next;
     });
+    setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, status } : r) : null);
     try {
       await fetch(`/api/reports/${id}`, {
         method: 'PATCH',
@@ -364,13 +383,16 @@ export default function Home() {
             ref={scrollContainerRef}
             className="flex-1 overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-4"
             onScroll={e => {
-              if ((e.currentTarget as HTMLDivElement).scrollTop < 80) loadMoreReports();
+              if (!filteredReports && (e.currentTarget as HTMLDivElement).scrollTop < 80) loadMoreReports();
             }}
           >
-            {isLoadingMore && (
+            {isFilterLoading && (
+              <div className="flex justify-center py-2 text-xs text-gray-400 dark:text-[#858585]">Đang lọc...</div>
+            )}
+            {!filteredReports && isLoadingMore && (
               <div className="flex justify-center py-2 text-xs text-gray-400 dark:text-[#858585]">Đang tải...</div>
             )}
-            {!hasMore && reports.length > 0 && (
+            {!filteredReports && !hasMore && reports.length > 0 && (
               <div className="flex justify-center py-2 text-xs text-gray-400 dark:text-[#858585]">Đã tải hết</div>
             )}
             {displayReports.length ? (

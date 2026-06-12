@@ -7,22 +7,35 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const beforeId = searchParams.get('before_id');
+    const userId = searchParams.get('user_id');
+    const date = searchParams.get('date');
     const assigneeId = searchParams.get('assignee_id');
 
     const conditions: string[] = [];
-    const values: (string | number)[] = [limit];
+    const values: (string | number)[] = [];
 
     if (beforeId) {
       conditions.push(`dr.id < $${values.length + 1}`);
       values.push(parseInt(beforeId));
     }
-
+    if (userId) {
+      conditions.push(`dr.user_id = $${values.length + 1}`);
+      values.push(parseInt(userId));
+    }
+    if (date) {
+      conditions.push(`dr.created_at::date = $${values.length + 1}::date`);
+      values.push(date);
+    }
     if (assigneeId && assigneeId !== 'all') {
       conditions.push(`dr.assignee_id = $${values.length + 1}`);
       values.push(Number(assigneeId));
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const isFiltered = !!(userId || date || assigneeId);
+
+    values.push(isFiltered ? 1000 : limit);
+    const limitParam = `$${values.length}`;
 
     const result = await pool.query(
       `
@@ -41,7 +54,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
       ${where}
       ORDER BY dr.id DESC
-      LIMIT $1
+      LIMIT ${limitParam}
     `,
       values
     );
