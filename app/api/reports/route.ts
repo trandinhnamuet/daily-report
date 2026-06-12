@@ -7,6 +7,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const beforeId = searchParams.get('before_id');
+    const userId = searchParams.get('user_id');
+    const date = searchParams.get('date');
+
+    const conditions: string[] = [];
+    const values: (string | number)[] = [];
+
+    if (beforeId) {
+      conditions.push(`dr.id < $${values.length + 1}`);
+      values.push(parseInt(beforeId));
+    }
+    if (userId) {
+      conditions.push(`dr.user_id = $${values.length + 1}`);
+      values.push(parseInt(userId));
+    }
+    if (date) {
+      conditions.push(`dr.created_at::date = $${values.length + 1}::date`);
+      values.push(date);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const isFiltered = !!(userId || date);
+
+    values.push(isFiltered ? 1000 : limit);
+    const limitParam = `$${values.length}`;
 
     const result = await pool.query(
       `
@@ -19,11 +43,11 @@ export async function GET(request: NextRequest) {
         u.id AS user_id
       FROM daily_report.daily_report dr
       JOIN daily_report.users u ON dr.user_id = u.id
-      ${beforeId ? 'WHERE dr.id < $2' : ''}
+      ${where}
       ORDER BY dr.id DESC
-      LIMIT $1
+      LIMIT ${limitParam}
     `,
-      beforeId ? [limit, parseInt(beforeId)] : [limit]
+      values
     );
 
     return NextResponse.json(result.rows);
