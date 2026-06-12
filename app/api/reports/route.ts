@@ -5,9 +5,8 @@ import pool from '../../../lib/db';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
-    const offset = (page - 1) * limit;
+    const beforeId = searchParams.get('before_id');
 
     const result = await pool.query(
       `
@@ -20,10 +19,11 @@ export async function GET(request: NextRequest) {
         u.id AS user_id
       FROM daily_report.daily_report dr
       JOIN daily_report.users u ON dr.user_id = u.id
-      ORDER BY dr.created_at DESC
-      LIMIT $1 OFFSET $2
+      ${beforeId ? 'WHERE dr.id < $2' : ''}
+      ORDER BY dr.id DESC
+      LIMIT $1
     `,
-      [limit, offset]
+      beforeId ? [limit, parseInt(beforeId)] : [limit]
     );
 
     return NextResponse.json(result.rows);

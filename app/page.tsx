@@ -88,8 +88,11 @@ export default function Home() {
   } = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
 
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [scrollTrigger, setScrollTrigger] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
   const messageTextareaRef = useAutoResize(message);
@@ -158,16 +161,51 @@ export default function Home() {
     } catch { /* keep stale data */ }
   };
 
+  const LOAD_LIMIT = 50;
+
   const fetchReports = async () => {
     try {
-      const res = await fetch('/api/reports');
+      const res = await fetch(`/api/reports?limit=${LOAD_LIMIT}`);
       if (!res.ok) throw new Error();
       const data = await res.json();
       setReports(data);
+      setHasMore(data.length === LOAD_LIMIT);
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
       if (data.length) setReporterId(data[0].user_id);
       setScrollTrigger(n => n + 1);
     } catch { /* keep stale data */ }
+  };
+
+  const loadMoreReports = async () => {
+    if (isLoadingMore || !hasMore) return;
+    const oldestId = reports[reports.length - 1]?.id;
+    if (!oldestId) return;
+
+    setIsLoadingMore(true);
+    const container = scrollContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+
+    try {
+      const res = await fetch(`/api/reports?limit=${LOAD_LIMIT}&before_id=${oldestId}`);
+      if (!res.ok) throw new Error();
+      const older: Report[] = await res.json();
+      if (older.length === 0) { setHasMore(false); return; }
+
+      setReports(prev => {
+        const next = [...prev, ...older];
+        sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+        return next;
+      });
+      setHasMore(older.length === LOAD_LIMIT);
+
+      // Restore scroll position so viewport doesn't jump
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop += container.scrollHeight - prevScrollHeight;
+        }
+      });
+    } catch { /* ignore */ }
+    finally { setIsLoadingMore(false); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -292,7 +330,19 @@ export default function Home() {
           lg:flex lg:flex-1 lg:min-h-0
         `}>
           {/* Messages list */}
-          <div className="flex-1 overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-4">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-y-auto px-2 sm:px-4 py-1.5 sm:py-4"
+            onScroll={e => {
+              if ((e.currentTarget as HTMLDivElement).scrollTop < 80) loadMoreReports();
+            }}
+          >
+            {isLoadingMore && (
+              <div className="flex justify-center py-2 text-xs text-gray-400 dark:text-[#858585]">Đang tải...</div>
+            )}
+            {!hasMore && reports.length > 0 && (
+              <div className="flex justify-center py-2 text-xs text-gray-400 dark:text-[#858585]">Đã tải hết</div>
+            )}
             {displayReports.length ? (
               displayReports.map(r => (
                 <ChatMessage
