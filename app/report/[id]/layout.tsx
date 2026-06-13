@@ -1,8 +1,6 @@
 import type { Metadata } from 'next';
 import pool from '@/lib/db';
 
-const STATUS_LABEL: Record<string, string> = { note: 'Ghi chú', todo: 'Todo', done: 'Done' };
-
 function baseUrl() {
   // Ưu tiên domain production cố định, KHÔNG dùng VERCEL_URL (URL deployment
   // riêng thường bị Vercel Deployment Protection chặn → crawler không tải được ảnh)
@@ -19,35 +17,35 @@ export async function generateMetadata(
   const reportId = Number(id);
   const base = baseUrl();
 
-  if (Number.isNaN(reportId)) {
-    return { title: 'Task', metadataBase: new URL(base) };
-  }
+  // title rỗng → không hiện gì (Messenger/Zalo chỉ hiện ảnh + domain)
+  const emptyTitle = { title: { absolute: '' }, metadataBase: new URL(base) };
+
+  if (Number.isNaN(reportId)) return emptyTitle;
 
   try {
     const result = await pool.query(
-      `SELECT dr.message, dr.status, u.name AS user_name
+      `SELECT dr.message, a.name AS assignee_name
        FROM daily_report.daily_report dr
-       JOIN daily_report.users u ON dr.user_id = u.id
+       LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
        WHERE dr.id = $1`,
       [reportId]
     );
 
-    if (result.rowCount === 0) {
-      return { title: 'Không tìm thấy task', metadataBase: new URL(base) };
-    }
+    if (result.rowCount === 0) return emptyTitle;
 
-    const r = result.rows[0] as { message: string; status: string; user_name: string };
-    const statusLabel = STATUS_LABEL[r.status] ?? 'Task';
-    const title = `${statusLabel} · ${r.user_name}`;
+    const r = result.rows[0] as { message: string; assignee_name: string | null };
     const description = r.message.replace(/\s+/g, ' ').trim().slice(0, 200);
     const url = `${base}/report/${reportId}`;
 
+    // Chỉ hiện title khi có người nhận; ngược lại để trống
+    const title = r.assignee_name ? `Task of ${r.assignee_name}` : '';
+
     return {
-      title,
+      title: { absolute: title },
       description,
       metadataBase: new URL(base),
       openGraph: {
-        title,
+        ...(title ? { title } : {}),
         description,
         url,
         type: 'article',
@@ -55,12 +53,12 @@ export async function generateMetadata(
       },
       twitter: {
         card: 'summary_large_image',
-        title,
+        ...(title ? { title } : {}),
         description,
       },
     };
   } catch {
-    return { title: 'Task', metadataBase: new URL(base) };
+    return emptyTitle;
   }
 }
 
