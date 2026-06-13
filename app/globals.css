@@ -40,15 +40,10 @@ body {
   }
 }
 
-.spotlight-overlay {
+.spotlight-rect {
   position: fixed;
-  inset: 0;
-  background: radial-gradient(
-    circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
-    transparent 120px,
-    rgba(0, 0, 0, 0.85) 280px
-  );
+  background: rgba(0, 0, 0, 0.85);
   pointer-events: none;
   z-index: 40;
-  animation: spotlight-fade-in 0.3s ease-out, spotlight-fade-out 0.5s ease-in 4.5s forwards;
+  animation: spotlight-fade-in 0.3s ease-out, spotlight-fade-out 2s ease-in 3s forwards;
 }
