@@ -172,10 +172,22 @@ export default function Home() {
 
   useEffect(() => { localStorage.setItem(DRAFT_KEY, message); }, [message]);
 
-  // Đọc hash khi mount để biết task cần highlight
+  // Đọc hash khi mount & khi hash thay đổi để biết task cần highlight
   useEffect(() => {
-    const match = window.location.hash.match(/^#report-(\d+)$/);
-    if (match) setHighlightId(parseInt(match[1]));
+    const updateHighlightFromHash = () => {
+      const match = window.location.hash.match(/^#report-(\d+)$/);
+      if (match) {
+        setHighlightId(parseInt(match[1]));
+        hasFetchedHighlightRef.current = false;
+      } else {
+        setHighlightId(null);
+        hasFetchedHighlightRef.current = false;
+      }
+    };
+
+    updateHighlightFromHash();
+    window.addEventListener('hashchange', updateHighlightFromHash);
+    return () => window.removeEventListener('hashchange', updateHighlightFromHash);
   }, []);
 
   // Sau khi reports được tải, nếu target chưa có → auto-load older reports
