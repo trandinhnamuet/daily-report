@@ -229,21 +229,25 @@ export default function Home() {
     if (!highlightId) { setSpotlightRect(null); return; }
 
     const updateRect = () => {
-      const el = document.getElementById(`report-${highlightId}`);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const padding = 8;
-      setSpotlightRect({
-        top: Math.max(0, Math.round(rect.top - padding)),
-        bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
-        left: Math.max(0, Math.round(rect.left - padding)),
-        right: Math.min(window.innerWidth, Math.round(rect.right + padding))
-      });
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`report-${highlightId}`);
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const padding = 8;
+        setSpotlightRect({
+          top: Math.max(0, Math.round(rect.top - padding)),
+          bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
+          left: Math.max(0, Math.round(rect.left - padding)),
+          right: Math.min(window.innerWidth, Math.round(rect.right + padding))
+        });
 
-      // Auto-scroll when element comes into view
-      if (rect.top < 0 || rect.bottom > window.innerHeight) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+        // Auto-scroll when element is outside viewport
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+          requestAnimationFrame(() => {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          });
+        }
+      });
     };
 
     updateRect();
