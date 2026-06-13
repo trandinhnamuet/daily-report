@@ -104,7 +104,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', is
     <div
       id={`report-${report.id}`}
       ref={rootRef}
-      className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card} ${isHighlighted ? 'highlight-report' : ''}`}
+      className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card}`}
     >
 
       {/* Left: message content */}
