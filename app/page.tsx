@@ -186,17 +186,46 @@ export default function Home() {
     if (match) setHighlightId(parseInt(match[1]));
   }, []);
 
-  // Sau khi reports được tải, nếu target chưa có → fetch riêng
+  // Sau khi reports được tải, nếu target chưa có → auto-load older reports
   useEffect(() => {
     if (!highlightId || !reportsFetched || hasFetchedHighlightRef.current) return;
     hasFetchedHighlightRef.current = true;
     if (reports.some(r => r.id === highlightId)) return;
-    fetch(`/api/reports/${highlightId}`)
-      .then(r => r.ok ? r.json() : null)
-      .then((data: Report | null) => {
-        if (data) setReports(prev => prev.some(r => r.id === data.id) ? prev : [...prev, data]);
-      })
-      .catch(() => {});
+
+    let isMounted = true;
+    const autoLoadOlder = async () => {
+      let currentReports = reports;
+      let attempts = 0;
+      const maxAttempts = 100;
+
+      while (attempts < maxAttempts) {
+        if (!isMounted) break;
+        if (currentReports.some(r => r.id === highlightId)) break;
+
+        const oldestId = currentReports[currentReports.length - 1]?.id;
+        if (!oldestId) break;
+
+        try {
+          const res = await fetch(`/api/reports?limit=${LOAD_LIMIT}&before_id=${oldestId}`);
+          const older: Report[] = await res.json();
+          if (!older.length) break;
+
+          currentReports = [...currentReports, ...older];
+          if (isMounted) {
+            setReports(currentReports);
+            sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(currentReports));
+          }
+        } catch {
+          break;
+        }
+
+        attempts++;
+        await new Promise(r => setTimeout(r, 50));
+      }
+    };
+
+    autoLoadOlder();
+    return () => { isMounted = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportsFetched, highlightId]);
 
