@@ -146,7 +146,13 @@ export default function Home() {
     setShowUserModal(false); setHasCheckedUser(true);
   }, [users, hasCheckedUser, resetCurrentUser, setCurrentUser]);
 
+  const isFirstScrollRender = useRef(true);
   useEffect(() => {
+    // Lần mount đầu tiên: nếu URL trỏ đến 1 task cụ thể thì không scroll xuống dưới cùng
+    if (isFirstScrollRender.current) {
+      isFirstScrollRender.current = false;
+      if (/^#report-\d+$/.test(window.location.hash)) return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [scrollTrigger]);
 
@@ -285,7 +291,8 @@ export default function Home() {
       setReportsFetched(true);
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
       if (data.length) setReporterId(data[0].user_id);
-      setScrollTrigger(n => n + 1);
+      // Không scroll xuống task mới nhất nếu URL đang trỏ đến 1 task cụ thể (link highlight)
+      if (!/^#report-\d+$/.test(window.location.hash)) setScrollTrigger(n => n + 1);
     } catch { /* keep stale data */ }
   };
 
