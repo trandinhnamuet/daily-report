@@ -97,6 +97,8 @@ export default function Home() {
 
   const [filteredReports, setFilteredReports] = useState<Report[] | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [reportsFetched, setReportsFetched] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [scrollTrigger, setScrollTrigger] = useState(0);
@@ -104,6 +106,7 @@ export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const hasFetchedHighlightRef = useRef(false);
   const messageTextareaRef = useAutoResize(message);
 
   const displayReports = (filteredReports ?? reports)
@@ -176,6 +179,26 @@ export default function Home() {
 
   useEffect(() => { localStorage.setItem(DRAFT_KEY, message); }, [message]);
 
+  // Đọc hash khi mount để biết task cần highlight
+  useEffect(() => {
+    const match = window.location.hash.match(/^#report-(\d+)$/);
+    if (match) setHighlightId(parseInt(match[1]));
+  }, []);
+
+  // Sau khi reports được tải, nếu target chưa có → fetch riêng
+  useEffect(() => {
+    if (!highlightId || !reportsFetched || hasFetchedHighlightRef.current) return;
+    hasFetchedHighlightRef.current = true;
+    if (reports.some(r => r.id === highlightId)) return;
+    fetch(`/api/reports/${highlightId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data: Report | null) => {
+        if (data) setReports(prev => prev.some(r => r.id === data.id) ? prev : [...prev, data]);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reportsFetched, highlightId]);
+
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -195,6 +218,7 @@ export default function Home() {
       const data = await res.json();
       setReports(data);
       setHasMore(data.length === LOAD_LIMIT);
+      setReportsFetched(true);
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
       if (data.length) setReporterId(data[0].user_id);
       setScrollTrigger(n => n + 1);
@@ -403,6 +427,7 @@ export default function Home() {
                   users={users}
                   status={r.status ?? 'note'}
                   fontSize={fontSize}
+                  isHighlighted={r.id === highlightId}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
                   onAssigneeChange={handleAssigneeChange}

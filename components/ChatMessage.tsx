@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock } from 'lucide-react';
+import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock, Link2 } from 'lucide-react';
 
 export type Status = 'note' | 'todo' | 'done';
 
@@ -28,6 +28,7 @@ interface ChatMessageProps {
   users: User[];
   status: Status;
   fontSize?: FontSize;
+  isHighlighted?: boolean;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: Status) => void;
   onAssigneeChange: (id: number, assignee_id: number | null, assignee_name: string | null) => void;
@@ -66,11 +67,14 @@ const FONT_CLS: Record<FontSize, string> = {
   base: 'text-base sm:text-sm',
 };
 
-export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange, onAssigneeChange, onDeadlineChange }: ChatMessageProps) {
+export default function ChatMessage({ report, users, status, fontSize = 'xs', isHighlighted, onDelete, onStatusChange, onAssigneeChange, onDeadlineChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [ringVisible, setRingVisible] = useState(false);
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const formattedTime = format(new Date(report.created_at), 'HH:mm dd/MM/yyyy');
   const user = users.find(u => u.id === report.user_id);
@@ -116,8 +120,28 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
     return () => document.removeEventListener('mousedown', onOutside);
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (!isHighlighted) return;
+    setRingVisible(true);
+    rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setRingVisible(false), 2500);
+    return () => clearTimeout(t);
+  }, [isHighlighted]);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}${window.location.pathname}#report-${report.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => { setCopied(false); setMenuOpen(false); }, 1500);
+    }).catch(() => {});
+  };
+
   return (
-    <div className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card}`}>
+    <div
+      id={`report-${report.id}`}
+      ref={rootRef}
+      className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden transition-shadow duration-[2000ms] ${cfg.card} ${ringVisible ? 'shadow-[0_0_0_3px_#fbbf24]' : ''}`}
+    >
 
       {/* Left: message content */}
       <div className={`flex-1 p-2.5 sm:p-4 min-w-0 ${cfg.content}`}>
@@ -142,7 +166,14 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-20 overflow-hidden">
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={handleCopyLink}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e] transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                  {copied ? 'Đã copy!' : 'Lấy link'}
+                </button>
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(report.id); }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors"
