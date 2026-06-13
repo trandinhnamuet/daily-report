@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, Link2 } from 'lucide-react';
 
@@ -63,8 +64,10 @@ const FONT_CLS: Record<FontSize, string> = {
 
 export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   const formattedTime = format(new Date(report.created_at), 'HH:mm dd/MM/yyyy');
   const user = users.find(u => u.id === report.user_id);
@@ -74,15 +77,34 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
   const cfg = STATUS_CFG[status];
   const StatusIcon = cfg.Icon;
 
+  const updateMenuPos = () => {
+    const rect = menuBtnRef.current?.getBoundingClientRect();
+    if (rect) setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+  };
+
+  const toggleMenu = () => {
+    setMenuOpen(o => {
+      if (!o) updateMenuPos();
+      return !o;
+    });
+  };
+
   useEffect(() => {
     if (!menuOpen) return;
     function onOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+      const target = e.target as Node;
+      if (menuBtnRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      setMenuOpen(false);
     }
     document.addEventListener('mousedown', onOutside);
-    return () => document.removeEventListener('mousedown', onOutside);
+    window.addEventListener('scroll', updateMenuPos, true);
+    window.addEventListener('resize', updateMenuPos);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      window.removeEventListener('scroll', updateMenuPos, true);
+      window.removeEventListener('resize', updateMenuPos);
+    };
   }, [menuOpen]);
 
   const handleCopyLink = () => {
@@ -111,17 +133,22 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
           </div>
 
           {/* Three-dot menu */}
-          <div className="relative shrink-0 ml-2" ref={menuRef}>
+          <div className="relative shrink-0 ml-2">
             <button
-              onClick={() => setMenuOpen(o => !o)}
+              ref={menuBtnRef}
+              onClick={toggleMenu}
               className="p-1.5 rounded hover:bg-black/5 dark:hover:bg-white/10 text-gray-400 dark:text-[#858585] hover:text-gray-600 dark:hover:text-[#d4d4d4] transition-colors"
               title="Tùy chọn"
             >
               <MoreHorizontal className="w-4 h-4" />
             </button>
 
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-20 overflow-hidden">
+            {menuOpen && menuPos && createPortal(
+              <div
+                ref={menuRef}
+                style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
+                className="w-44 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-50 overflow-hidden"
+              >
                 <button
                   onClick={handleCopyLink}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e] transition-colors"
@@ -136,7 +163,8 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
                   <Trash2 className="w-4 h-4" />
                   Xóa mục này
                 </button>
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>
