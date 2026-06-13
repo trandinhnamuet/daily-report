@@ -238,29 +238,35 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportsFetched, highlightId]);
 
-  // Track spotlight rect & scroll to highlight
+  // Scroll đến task highlight MỘT LẦN khi element xuất hiện trong DOM
+  const hasScrolledToHighlightRef = useRef(false);
+  useEffect(() => { hasScrolledToHighlightRef.current = false; }, [highlightId]);
+  useEffect(() => {
+    if (!highlightId || hasScrolledToHighlightRef.current) return;
+    const el = document.getElementById(`report-${highlightId}`);
+    if (!el) return;
+    hasScrolledToHighlightRef.current = true;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }, [highlightId, reports]);
+
+  // Theo dõi vị trí spotlight overlay (chỉ cập nhật rect, KHÔNG scroll)
   useEffect(() => {
     if (!highlightId) { setSpotlightRect(null); return; }
 
     const updateRect = () => {
-      requestAnimationFrame(() => {
-        const el = document.getElementById(`report-${highlightId}`);
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const padding = 8;
-        setSpotlightRect({
-          top: Math.max(0, Math.round(rect.top - padding)),
-          bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
-          left: Math.max(0, Math.round(rect.left - padding)),
-          right: Math.min(window.innerWidth, Math.round(rect.right + padding))
-        });
-
-        // Auto-scroll when element is outside viewport
-        if (rect.top < 0 || rect.bottom > window.innerHeight) {
-          requestAnimationFrame(() => {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          });
-        }
+      const el = document.getElementById(`report-${highlightId}`);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const padding = 8;
+      setSpotlightRect({
+        top: Math.max(0, Math.round(rect.top - padding)),
+        bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
+        left: Math.max(0, Math.round(rect.left - padding)),
+        right: Math.min(window.innerWidth, Math.round(rect.right + padding))
       });
     };
 
