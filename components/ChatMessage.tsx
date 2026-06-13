@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, Link2 } from 'lucide-react';
 
@@ -25,7 +25,6 @@ interface ChatMessageProps {
   users: User[];
   status: Status;
   fontSize?: FontSize;
-  isHighlighted?: boolean;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: Status) => void;
 }
@@ -62,16 +61,10 @@ const FONT_CLS: Record<FontSize, string> = {
   base: 'text-base sm:text-sm',
 };
 
-export default function ChatMessage({ report, users, status, fontSize = 'xs', isHighlighted, onDelete, onStatusChange }: ChatMessageProps) {
+export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const rootRef = useCallback((el: HTMLDivElement | null) => {
-    if (!el || !isHighlighted) return;
-    requestAnimationFrame(() => {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-  }, [isHighlighted]);
 
   const formattedTime = format(new Date(report.created_at), 'HH:mm dd/MM/yyyy');
   const user = users.find(u => u.id === report.user_id);
@@ -93,7 +86,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', is
   }, [menuOpen]);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}${window.location.pathname}#report-${report.id}`;
+    const url = `${window.location.origin}/report/${report.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => { setCopied(false); setMenuOpen(false); }, 1500);
@@ -102,8 +95,6 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', is
 
   return (
     <div
-      id={`report-${report.id}`}
-      ref={rootRef}
       className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card}`}
     >
 

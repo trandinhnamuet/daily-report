@@ -90,9 +90,6 @@ export default function Home() {
 
   const [filteredReports, setFilteredReports] = useState<Report[] | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
-  const [highlightId, setHighlightId] = useState<number | null>(null);
-  const [spotlightRect, setSpotlightRect] = useState<{top: number, bottom: number, left: number, right: number} | null>(null);
-  const [reportsFetched, setReportsFetched] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [scrollTrigger, setScrollTrigger] = useState(0);
@@ -100,7 +97,6 @@ export default function Home() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
-  const hasFetchedHighlightRef = useRef(false);
   const messageTextareaRef = useAutoResize(message);
 
   const displayReports = (filteredReports ?? reports)
@@ -139,13 +135,7 @@ export default function Home() {
     setShowUserModal(false); setHasCheckedUser(true);
   }, [users, hasCheckedUser, resetCurrentUser, setCurrentUser]);
 
-  const isFirstScrollRender = useRef(true);
   useEffect(() => {
-    // Lần mount đầu tiên: nếu URL trỏ đến 1 task cụ thể thì không scroll xuống dưới cùng
-    if (isFirstScrollRender.current) {
-      isFirstScrollRender.current = false;
-      if (/^#report-\d+$/.test(window.location.hash)) return;
-    }
     messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   }, [scrollTrigger]);
 
@@ -178,95 +168,6 @@ export default function Home() {
 
   useEffect(() => { localStorage.setItem(DRAFT_KEY, message); }, [message]);
 
-  // Đọc hash khi mount & khi hash thay đổi để biết task cần highlight
-  useEffect(() => {
-    const updateHighlightFromHash = () => {
-      const match = window.location.hash.match(/^#report-(\d+)$/);
-      if (match) {
-        setHighlightId(parseInt(match[1]));
-        hasFetchedHighlightRef.current = false;
-      } else {
-        setHighlightId(null);
-        hasFetchedHighlightRef.current = false;
-      }
-    };
-
-    updateHighlightFromHash();
-    window.addEventListener('hashchange', updateHighlightFromHash);
-    return () => window.removeEventListener('hashchange', updateHighlightFromHash);
-  }, []);
-
-  // Sau khi reports được tải, nếu target chưa có → auto-load older reports
-  useEffect(() => {
-    if (!highlightId || !reportsFetched || hasFetchedHighlightRef.current) return;
-    hasFetchedHighlightRef.current = true;
-    if (reports.some(r => r.id === highlightId)) return;
-
-    let isMounted = true;
-    const autoLoadOlder = async () => {
-      try {
-        // Fetch target report to verify it exists
-        const targetRes = await fetch(`/api/reports/${highlightId}`);
-        if (!targetRes.ok) return;
-        const targetReport = await targetRes.json();
-
-        // Load all older reports than the target in one go
-        const oldestId = reports[reports.length - 1]?.id || Number.MAX_SAFE_INTEGER;
-        const res = await fetch(`/api/reports?limit=10000&before_id=${oldestId}`);
-        const older: Report[] = await res.json();
-
-        if (older.length && isMounted) {
-          const updated = [...reports, ...older];
-          setReports(updated);
-          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(updated));
-        }
-      } catch {
-        // Silently fail
-      }
-    };
-
-    autoLoadOlder();
-    return () => { isMounted = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reportsFetched, highlightId]);
-
-  // Scroll đến task highlight MỘT LẦN khi element xuất hiện trong DOM
-  const hasScrolledToHighlightRef = useRef(false);
-  useEffect(() => { hasScrolledToHighlightRef.current = false; }, [highlightId]);
-  useEffect(() => {
-    if (!highlightId || hasScrolledToHighlightRef.current) return;
-    const el = document.getElementById(`report-${highlightId}`);
-    if (!el) return;
-    hasScrolledToHighlightRef.current = true;
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    });
-  }, [highlightId, reports]);
-
-  // Theo dõi vị trí spotlight overlay (chỉ cập nhật rect, KHÔNG scroll)
-  useEffect(() => {
-    if (!highlightId) { setSpotlightRect(null); return; }
-
-    const updateRect = () => {
-      const el = document.getElementById(`report-${highlightId}`);
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const padding = 8;
-      setSpotlightRect({
-        top: Math.max(0, Math.round(rect.top - padding)),
-        bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
-        left: Math.max(0, Math.round(rect.left - padding)),
-        right: Math.min(window.innerWidth, Math.round(rect.right + padding))
-      });
-    };
-
-    updateRect();
-    const timer = setInterval(updateRect, 100);
-    return () => clearInterval(timer);
-  }, [highlightId, reports]);
-
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -286,11 +187,9 @@ export default function Home() {
       const data = await res.json();
       setReports(data);
       setHasMore(data.length === LOAD_LIMIT);
-      setReportsFetched(true);
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
       if (data.length) setReporterId(data[0].user_id);
-      // Không scroll xuống task mới nhất nếu URL đang trỏ đến 1 task cụ thể (link highlight)
-      if (!/^#report-\d+$/.test(window.location.hash)) setScrollTrigger(n => n + 1);
+      setScrollTrigger(n => n + 1);
     } catch { /* keep stale data */ }
   };
 
@@ -474,7 +373,6 @@ export default function Home() {
                   users={users}
                   status={r.status ?? 'note'}
                   fontSize={fontSize}
-                  isHighlighted={r.id === highlightId}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
                 />
@@ -636,16 +534,6 @@ export default function Home() {
           </div>,
           document.body
         )}
-
-      {highlightId && spotlightRect && createPortal(
-        <>
-          <div className="spotlight-rect" style={{top: 0, left: 0, right: 0, height: `${spotlightRect.top}px`}} />
-          <div className="spotlight-rect" style={{top: `${spotlightRect.bottom}px`, left: 0, right: 0, bottom: 0}} />
-          <div className="spotlight-rect" style={{top: `${spotlightRect.top}px`, left: 0, width: `${spotlightRect.left}px`, height: `${spotlightRect.bottom - spotlightRect.top}px`}} />
-          <div className="spotlight-rect" style={{top: `${spotlightRect.top}px`, left: `${spotlightRect.right}px`, right: 0, height: `${spotlightRect.bottom - spotlightRect.top}px`}} />
-        </>,
-        document.body
-      )}
     </div>
   );
 }
