@@ -91,7 +91,7 @@ export default function Home() {
   const [filteredReports, setFilteredReports] = useState<Report[] | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [highlightId, setHighlightId] = useState<number | null>(null);
-  const [spotlightCoords, setSpotlightCoords] = useState<{x: number, y: number} | null>(null);
+  const [spotlightRect, setSpotlightRect] = useState<{top: number, bottom: number, left: number, right: number} | null>(null);
   const [reportsFetched, setReportsFetched] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -192,22 +192,25 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportsFetched, highlightId]);
 
-  // Track spotlight coords
+  // Track spotlight rect
   useEffect(() => {
-    if (!highlightId) { setSpotlightCoords(null); return; }
+    if (!highlightId) { setSpotlightRect(null); return; }
 
-    const updateCoords = () => {
+    const updateRect = () => {
       const el = document.getElementById(`report-${highlightId}`);
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setSpotlightCoords({
-        x: Math.round(rect.left + rect.width / 2),
-        y: Math.round(rect.top + rect.height / 2)
+      const padding = 8;
+      setSpotlightRect({
+        top: Math.max(0, Math.round(rect.top - padding)),
+        bottom: Math.min(window.innerHeight, Math.round(rect.bottom + padding)),
+        left: Math.max(0, Math.round(rect.left - padding)),
+        right: Math.min(window.innerWidth, Math.round(rect.right + padding))
       });
     };
 
-    updateCoords();
-    const timer = setInterval(updateCoords, 100);
+    updateRect();
+    const timer = setInterval(updateRect, 100);
     return () => clearInterval(timer);
   }, [highlightId]);
 
@@ -580,14 +583,13 @@ export default function Home() {
           document.body
         )}
 
-      {highlightId && spotlightCoords && createPortal(
-        <div
-          className="spotlight-overlay"
-          style={{
-            '--spotlight-x': `${spotlightCoords.x}px`,
-            '--spotlight-y': `${spotlightCoords.y}px`,
-          } as React.CSSProperties}
-        />,
+      {highlightId && spotlightRect && createPortal(
+        <>
+          <div className="spotlight-rect" style={{top: 0, left: 0, right: 0, height: `${spotlightRect.top}px`}} />
+          <div className="spotlight-rect" style={{top: `${spotlightRect.bottom}px`, left: 0, right: 0, bottom: 0}} />
+          <div className="spotlight-rect" style={{top: `${spotlightRect.top}px`, left: 0, width: `${spotlightRect.left}px`, height: `${spotlightRect.bottom - spotlightRect.top}px`}} />
+          <div className="spotlight-rect" style={{top: `${spotlightRect.top}px`, left: `${spotlightRect.right}px`, right: 0, height: `${spotlightRect.bottom - spotlightRect.top}px`}} />
+        </>,
         document.body
       )}
     </div>
