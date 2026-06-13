@@ -2,10 +2,9 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import {
-  ArrowLeft, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock,
-} from 'lucide-react';
+import { ArrowLeft, StickyNote, Clock, CheckCircle2, Trash2 } from 'lucide-react';
 
 type Status = 'note' | 'todo' | 'done';
 
@@ -16,48 +15,69 @@ interface Report {
   status: Status;
   user_id: number;
   user_name: string;
-  assignee_id: number | null;
-  assignee_name: string | null;
-  deadline: string | null;
 }
 
-const STATUS_CFG: Record<Status, { label: string; Icon: typeof StickyNote; card: string; badge: string }> = {
+const STATUS_CFG: Record<Status, { label: string; Icon: typeof StickyNote; card: string; active: string }> = {
   note: {
     label: 'Ghi chú',
     Icon: StickyNote,
-    card:  'border-gray-200 dark:border-[#3c3c3c] bg-white dark:bg-[#1e1e1e]',
-    badge: 'bg-gray-100 text-gray-500 dark:bg-[#252525] dark:text-[#9b9b9b]',
+    card:   'border-gray-200 dark:border-[#3c3c3c] bg-white dark:bg-[#1e1e1e]',
+    active: 'bg-gray-500 text-white border-gray-500',
   },
   todo: {
     label: 'Todo',
     Icon: Clock,
-    card:  'border-red-300 dark:border-[#7f1d1d] bg-red-50 dark:bg-[#2a0f0f]',
-    badge: 'bg-red-500 text-white dark:bg-[#7f1d1d]',
+    card:   'border-red-300 dark:border-[#7f1d1d] bg-red-50 dark:bg-[#2a0f0f]',
+    active: 'bg-red-500 text-white border-red-500',
   },
   done: {
     label: 'Done',
     Icon: CheckCircle2,
-    card:  'border-green-300 dark:border-[#166534] bg-green-50 dark:bg-[#0a1f14]',
-    badge: 'bg-green-500 text-white dark:bg-[#14532d]',
+    card:   'border-green-300 dark:border-[#166534] bg-green-50 dark:bg-[#0a1f14]',
+    active: 'bg-green-500 text-white border-green-500',
   },
 };
 
+const STATUS_ORDER: Status[] = ['note', 'todo', 'done'];
+
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'notfound'>('loading');
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     fetch(`/api/reports/${id}`)
-      .then(res => {
-        if (!res.ok) throw new Error();
-        return res.json();
-      })
+      .then(res => { if (!res.ok) throw new Error(); return res.json(); })
       .then((data: Report) => { if (mounted) { setReport(data); setState('ready'); } })
       .catch(() => { if (mounted) setState('notfound'); });
     return () => { mounted = false; };
   }, [id]);
+
+  const handleStatusChange = async (status: Status) => {
+    if (!report || report.status === status) return;
+    setReport({ ...report, status });
+    try {
+      await fetch(`/api/reports/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+    } catch { /* optimistic */ }
+  };
+
+  const handleDelete = async () => {
+    if (deleting) return;
+    if (!window.confirm('Xoá task này?')) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
+      if (res.ok) { router.push('/'); return; }
+    } catch { /* fall through */ }
+    setDeleting(false);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#1e1e1e] flex flex-col items-center px-4 py-6 sm:py-12">
@@ -83,29 +103,22 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
 
         {state === 'ready' && report && (() => {
           const cfg = STATUS_CFG[report.status ?? 'note'];
-          const StatusIcon = cfg.Icon;
           const avatarChar = report.user_name ? report.user_name.charAt(0).toUpperCase() : '?';
           return (
             <div className={`rounded-xl border p-5 sm:p-7 ${cfg.card}`}>
               {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
-                    <span className="text-white text-sm font-semibold">{avatarChar}</span>
+              <div className="flex items-center gap-2.5 min-w-0 mb-4">
+                <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-white text-sm font-semibold">{avatarChar}</span>
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium text-sm text-gray-900 dark:text-[#d4d4d4] truncate">
+                    {report.user_name ?? 'Người dùng đã bị xoá'}
                   </div>
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm text-gray-900 dark:text-[#d4d4d4] truncate">
-                      {report.user_name ?? 'Người dùng đã bị xoá'}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-[#858585]">
-                      {format(new Date(report.created_at), 'HH:mm dd/MM/yyyy')}
-                    </div>
+                  <div className="text-xs text-gray-500 dark:text-[#858585]">
+                    {format(new Date(report.created_at), 'HH:mm dd/MM/yyyy')}
                   </div>
                 </div>
-                <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${cfg.badge}`}>
-                  <StatusIcon className="w-3.5 h-3.5" />
-                  {cfg.label}
-                </span>
               </div>
 
               {/* Message */}
@@ -113,23 +126,46 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
                 {report.message}
               </div>
 
-              {/* Assignee + deadline */}
-              {(report.assignee_name || report.deadline) && (
-                <div className="mt-5 pt-4 border-t border-black/5 dark:border-white/10 flex flex-wrap items-center gap-2">
-                  {report.assignee_name && (
-                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-purple-100 text-purple-700 dark:bg-[#2a1f3d] dark:text-[#c084fc]">
-                      <UserCheck className="w-3.5 h-3.5" />
-                      {report.assignee_name}
-                    </span>
-                  )}
-                  {report.deadline && (
-                    <span className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-orange-100 text-orange-700 dark:bg-[#2a1a00] dark:text-[#fb923c]">
-                      <CalendarClock className="w-3.5 h-3.5" />
-                      {format(new Date(report.deadline), 'dd/MM/yyyy')}
-                    </span>
-                  )}
+              {/* Controls */}
+              <div className="mt-5 pt-4 border-t border-black/5 dark:border-white/10 space-y-4">
+                {/* Status */}
+                <div>
+                  <div className="text-xs font-medium text-gray-500 dark:text-[#858585] mb-1.5">Trạng thái</div>
+                  <div className="flex gap-2">
+                    {STATUS_ORDER.map(s => {
+                      const sc = STATUS_CFG[s];
+                      const SIcon = sc.Icon;
+                      const isActive = report.status === s;
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => handleStatusChange(s)}
+                          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                            isActive
+                              ? sc.active
+                              : 'border-gray-200 dark:border-[#3c3c3c] text-gray-600 dark:text-[#d4d4d4] hover:bg-gray-100 dark:hover:bg-[#2a2d2e]'
+                          }`}
+                        >
+                          <SIcon className="w-3.5 h-3.5" />
+                          {sc.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+
+                {/* Delete */}
+                <div className="pt-2">
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    {deleting ? 'Đang xoá...' : 'Xoá task này'}
+                  </button>
+                </div>
+              </div>
             </div>
           );
         })()}
