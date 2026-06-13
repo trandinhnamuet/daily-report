@@ -98,6 +98,7 @@ export default function Home() {
   const [filteredReports, setFilteredReports] = useState<Report[] | null>(null);
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [highlightId, setHighlightId] = useState<number | null>(null);
+  const [spotlightCoords, setSpotlightCoords] = useState<{x: number, y: number} | null>(null);
   const [reportsFetched, setReportsFetched] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -198,6 +199,25 @@ export default function Home() {
       .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportsFetched, highlightId]);
+
+  // Track spotlight coords
+  useEffect(() => {
+    if (!highlightId) { setSpotlightCoords(null); return; }
+
+    const updateCoords = () => {
+      const el = document.getElementById(`report-${highlightId}`);
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      setSpotlightCoords({
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2)
+      });
+    };
+
+    updateCoords();
+    const timer = setInterval(updateCoords, 100);
+    return () => clearInterval(timer);
+  }, [highlightId]);
 
   const fetchUsers = async () => {
     try {
@@ -630,6 +650,17 @@ export default function Home() {
           </div>,
           document.body
         )}
+
+      {highlightId && spotlightCoords && createPortal(
+        <div
+          className="spotlight-overlay"
+          style={{
+            '--spotlight-x': `${spotlightCoords.x}px`,
+            '--spotlight-y': `${spotlightCoords.y}px`,
+          } as React.CSSProperties}
+        />,
+        document.body
+      )}
     </div>
   );
 }
