@@ -4,7 +4,10 @@ import pool from '@/lib/db';
 const STATUS_LABEL: Record<string, string> = { note: 'Ghi chú', todo: 'Todo', done: 'Done' };
 
 function baseUrl() {
+  // Ưu tiên domain production cố định, KHÔNG dùng VERCEL_URL (URL deployment
+  // riêng thường bị Vercel Deployment Protection chặn → crawler không tải được ảnh)
   if (process.env.NEXT_PUBLIC_SITE_URL) return process.env.NEXT_PUBLIC_SITE_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
   return 'http://localhost:3000';
 }
