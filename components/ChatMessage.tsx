@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, Link2 } from 'lucide-react';
 
@@ -65,9 +65,13 @@ const FONT_CLS: Record<FontSize, string> = {
 export default function ChatMessage({ report, users, status, fontSize = 'xs', isHighlighted, onDelete, onStatusChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [ringVisible, setRingVisible] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el || !isHighlighted) return;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [isHighlighted]);
 
   const formattedTime = format(new Date(report.created_at), 'HH:mm dd/MM/yyyy');
   const user = users.find(u => u.id === report.user_id);
@@ -88,14 +92,6 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', is
     return () => document.removeEventListener('mousedown', onOutside);
   }, [menuOpen]);
 
-  useEffect(() => {
-    if (!isHighlighted) return;
-    setRingVisible(true);
-    rootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const t = setTimeout(() => setRingVisible(false), 2500);
-    return () => clearTimeout(t);
-  }, [isHighlighted]);
-
   const handleCopyLink = () => {
     const url = `${window.location.origin}${window.location.pathname}#report-${report.id}`;
     navigator.clipboard.writeText(url).then(() => {
@@ -108,7 +104,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', is
     <div
       id={`report-${report.id}`}
       ref={rootRef}
-      className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden transition-shadow duration-[2000ms] ${cfg.card} ${ringVisible ? 'shadow-[0_0_0_3px_#fbbf24]' : ''}`}
+      className={`flex mb-1 sm:mb-2 rounded-lg border overflow-hidden ${cfg.card} ${isHighlighted ? 'highlight-report' : ''}`}
     >
 
       {/* Left: message content */}
