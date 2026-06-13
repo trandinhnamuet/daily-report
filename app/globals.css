@@ -20,3 +20,36 @@ body {
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* Highlight animations */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.highlight-report {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(251, 191, 36, 0.15),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite, pulse-glow 2s infinite;
+}
