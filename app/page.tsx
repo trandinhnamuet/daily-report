@@ -186,33 +186,24 @@ export default function Home() {
 
     let isMounted = true;
     const autoLoadOlder = async () => {
-      let currentReports = reports;
-      let attempts = 0;
-      const maxAttempts = 100;
+      try {
+        // Fetch target report to verify it exists
+        const targetRes = await fetch(`/api/reports/${highlightId}`);
+        if (!targetRes.ok) return;
+        const targetReport = await targetRes.json();
 
-      while (attempts < maxAttempts) {
-        if (!isMounted) break;
-        if (currentReports.some(r => r.id === highlightId)) break;
+        // Load all older reports than the target in one go
+        const oldestId = reports[reports.length - 1]?.id || Number.MAX_SAFE_INTEGER;
+        const res = await fetch(`/api/reports?limit=10000&before_id=${oldestId}`);
+        const older: Report[] = await res.json();
 
-        const oldestId = currentReports[currentReports.length - 1]?.id;
-        if (!oldestId) break;
-
-        try {
-          const res = await fetch(`/api/reports?limit=${LOAD_LIMIT}&before_id=${oldestId}`);
-          const older: Report[] = await res.json();
-          if (!older.length) break;
-
-          currentReports = [...currentReports, ...older];
-          if (isMounted) {
-            setReports(currentReports);
-            sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(currentReports));
-          }
-        } catch {
-          break;
+        if (older.length && isMounted) {
+          const updated = [...reports, ...older];
+          setReports(updated);
+          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(updated));
         }
-
-        attempts++;
-        await new Promise(r => setTimeout(r, 50));
+      } catch {
+        // Silently fail
       }
     };
 
@@ -221,7 +212,7 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportsFetched, highlightId]);
 
-  // Track spotlight rect
+  // Track spotlight rect & scroll to highlight
   useEffect(() => {
     if (!highlightId) { setSpotlightRect(null); return; }
 
@@ -236,12 +227,17 @@ export default function Home() {
         left: Math.max(0, Math.round(rect.left - padding)),
         right: Math.min(window.innerWidth, Math.round(rect.right + padding))
       });
+
+      // Auto-scroll when element comes into view
+      if (rect.top < 0 || rect.bottom > window.innerHeight) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     };
 
     updateRect();
     const timer = setInterval(updateRect, 100);
     return () => clearInterval(timer);
-  }, [highlightId]);
+  }, [highlightId, reports]);
 
   const fetchUsers = async () => {
     try {
