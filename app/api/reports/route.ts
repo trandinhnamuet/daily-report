@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { randomBytes } from 'crypto';
 import pool from '../../../lib/db';
+import type { QueryResult } from 'pg';
+
+// public_id ngắn 8 ký tự hex, sinh ở tầng app để có thể retry khi trùng
+const genPublicId = () => randomBytes(4).toString('hex');
+
+const isUniqueViolation = (e: unknown) =>
+  !!e && typeof e === 'object' && 'code' in e && (e as { code?: string }).code === '23505';
 
 export async function GET(request: NextRequest) {
   try {
@@ -67,14 +75,25 @@ if (!user_id || !message?.trim()) {
   );
 }
 
-const insertResult = await pool.query(
-  `
-  INSERT INTO daily_report.daily_report (user_id, message)
-  VALUES ($1, $2)
-  RETURNING id, public_id, user_id, message, created_at, status
-`,
-  [Number(user_id), message.trim()]
-);
+// Sinh public_id ở app + retry nếu trùng (unique violation 23505)
+let insertResult: QueryResult | undefined;
+for (let attempt = 0; attempt < 5; attempt++) {
+  try {
+    insertResult = await pool.query(
+      `
+      INSERT INTO daily_report.daily_report (user_id, message, public_id)
+      VALUES ($1, $2, $3)
+      RETURNING id, public_id, user_id, message, created_at, status
+    `,
+      [Number(user_id), message.trim(), genPublicId()]
+    );
+    break;
+  } catch (e) {
+    if (isUniqueViolation(e) && attempt < 4) continue; // trùng public_id → sinh lại
+    throw e;
+  }
+}
+if (!insertResult) throw new Error('Failed to insert report');
 
 
     const userResult = await pool.query(
