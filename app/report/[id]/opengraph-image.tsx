@@ -18,28 +18,25 @@ function fmtDate(d: Date) {
 }
 
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const reportId = Number(id);
+  const { id: publicId } = await params;
 
   let report: {
     message: string; status: string; created_at: Date; user_name: string;
     assignee_name: string | null; deadline: Date | null;
   } | null = null;
 
-  if (!Number.isNaN(reportId)) {
-    try {
-      const result = await pool.query(
-        `SELECT dr.message, dr.status, dr.created_at, dr.deadline,
-                u.name AS user_name, a.name AS assignee_name
-         FROM daily_report.daily_report dr
-         JOIN daily_report.users u ON dr.user_id = u.id
-         LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
-         WHERE dr.id = $1`,
-        [reportId]
-      );
-      if (result.rowCount && result.rowCount > 0) report = result.rows[0];
-    } catch { /* fall through to fallback */ }
-  }
+  try {
+    const result = await pool.query(
+      `SELECT dr.message, dr.status, dr.created_at, dr.deadline,
+              u.name AS user_name, a.name AS assignee_name
+       FROM daily_report.daily_report dr
+       JOIN daily_report.users u ON dr.user_id = u.id
+       LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
+       WHERE dr.public_id = $1`,
+      [publicId]
+    );
+    if (result.rowCount && result.rowCount > 0) report = result.rows[0];
+  } catch { /* fall through to fallback */ }
 
   if (!report) {
     return new ImageResponse(

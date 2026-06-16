@@ -14,6 +14,7 @@ interface User {
 
 interface Report {
   id: number;
+  public_id?: string;
   message: string;
   created_at: string;
   user_id: number;
@@ -140,7 +141,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
   }, [menuOpen]);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/report/${report.id}`;
+    const url = `${window.location.origin}/report/${report.public_id ?? report.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => { setCopied(false); setMenuOpen(false); }, 1500);

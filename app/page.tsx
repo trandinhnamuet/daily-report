@@ -10,6 +10,7 @@ import UserSelector from '../components/UserSelector';
 import ChatMessage, { type Status } from '../components/ChatMessage';
 import DocumentPanel from '../components/DocumentPanel';
 import NotesPanel from '../components/NotesPanel';
+import PasswordGate from '../components/PasswordGate';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
@@ -30,6 +31,7 @@ const FILTER_CFG: Record<FilterStatus, { label: string; cls: string }> = {
 interface User { id: number; name: string; }
 interface Report {
   id: number;
+  public_id?: string;
   message: string;
   created_at: string;
   user_name: string;
@@ -41,6 +43,14 @@ interface Report {
 }
 
 export default function Home() {
+  return (
+    <PasswordGate>
+      <HomeContent />
+    </PasswordGate>
+  );
+}
+
+function HomeContent() {
   const REPORTS_CACHE = 'cache_reports';
   const USERS_CACHE   = 'cache_users';
 

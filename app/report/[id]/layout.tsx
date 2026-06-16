@@ -13,29 +13,26 @@ function baseUrl() {
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Metadata> {
-  const { id } = await params;
-  const reportId = Number(id);
+  const { id: publicId } = await params;
   const base = baseUrl();
 
   // title rỗng → không hiện gì (Messenger/Zalo chỉ hiện ảnh + domain)
   const emptyTitle = { title: { absolute: '' }, metadataBase: new URL(base) };
-
-  if (Number.isNaN(reportId)) return emptyTitle;
 
   try {
     const result = await pool.query(
       `SELECT dr.message, a.name AS assignee_name
        FROM daily_report.daily_report dr
        LEFT JOIN daily_report.users a ON dr.assignee_id = a.id
-       WHERE dr.id = $1`,
-      [reportId]
+       WHERE dr.public_id = $1`,
+      [publicId]
     );
 
     if (result.rowCount === 0) return emptyTitle;
 
     const r = result.rows[0] as { message: string; assignee_name: string | null };
     const description = r.message.replace(/\s+/g, ' ').trim().slice(0, 200);
-    const url = `${base}/report/${reportId}`;
+    const url = `${base}/report/${publicId}`;
 
     // Chỉ hiện title khi có người nhận; ngược lại để trống
     const title = r.assignee_name ? `Task of ${r.assignee_name}` : '';
