@@ -60,7 +60,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#1e1e1e] flex flex-col items-center px-4 py-6 sm:py-12">
+    <div className="h-[100dvh] overflow-y-auto bg-gray-50 dark:bg-[#1e1e1e] flex flex-col items-center px-4 py-6 sm:py-12">
       <div className="w-full max-w-2xl">
         <Link
           href="/"
