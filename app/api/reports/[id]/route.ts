@@ -1,30 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
 
-export async function GET(
-  _request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await context.params;
-    const reportId = Number(id);
-    if (isNaN(reportId)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
-
-    const result = await pool.query(
-      `SELECT dr.id, dr.message, dr.created_at, dr.status,
-              u.name AS user_name, u.id AS user_id
-       FROM daily_report.daily_report dr
-       JOIN daily_report.users u ON dr.user_id = u.id
-       WHERE dr.id = $1`,
-      [reportId]
-    );
-
-    if (result.rowCount === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(result.rows[0]);
-  } catch {
-    return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 });
-  }
-}
+// GET theo integer id đã bỏ — đọc 1 task dùng public_id qua /api/reports/by-public/[publicId]
+// (tránh đoán id tuần tự). Route này chỉ còn PATCH/DELETE cho thao tác nội bộ.
 
 export async function PATCH(
   request: NextRequest,

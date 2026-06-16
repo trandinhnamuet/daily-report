@@ -11,6 +11,7 @@ interface User { id: number; name: string; }
 
 interface Report {
   id: number;
+  public_id: string;
   message: string;
   created_at: string;
   status: Status;
@@ -19,7 +20,7 @@ interface Report {
 }
 
 export default function ReportPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+  const { id: publicId } = use(params);
   const router = useRouter();
   const [report, setReport] = useState<Report | null>(null);
   const [users, setUsers] = useState<User[]>([]);
@@ -28,7 +29,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
   useEffect(() => {
     let mounted = true;
     Promise.all([
-      fetch(`/api/reports/${id}`).then(res => { if (!res.ok) throw new Error(); return res.json(); }),
+      fetch(`/api/reports/by-public/${publicId}`).then(res => { if (!res.ok) throw new Error(); return res.json(); }),
       fetch('/api/users').then(res => res.ok ? res.json() : []).catch(() => []),
     ])
       .then(([reportData, usersData]: [Report, User[]]) => {
@@ -39,7 +40,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
       })
       .catch(() => { if (mounted) setState('notfound'); });
     return () => { mounted = false; };
-  }, [id]);
+  }, [publicId]);
 
   const handleStatusChange = async (rid: number, status: Status) => {
     setReport(prev => prev ? { ...prev, status } : prev);
