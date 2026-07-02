@@ -11,6 +11,7 @@ import ChatMessage, { type Status } from '../components/ChatMessage';
 import DocumentPanel from '../components/DocumentPanel';
 import NotesPanel from '../components/NotesPanel';
 import PasswordGate from '../components/PasswordGate';
+import PWAInstallPrompt from '../components/PWAInstallPrompt';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
@@ -43,6 +44,7 @@ export default function Home() {
   return (
     <PasswordGate>
       <HomeContent />
+      <PWAInstallPrompt />
     </PasswordGate>
   );
 }
