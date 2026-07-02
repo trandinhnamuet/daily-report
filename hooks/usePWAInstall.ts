@@ -74,10 +74,14 @@ export function usePWAInstall() {
     }
 
     if (!installPrompt) {
-      // No prompt available - clear PWA dismissal state and reload
-      // This helps when Chrome blocks prompt due to repeated dismissals
-      sessionStorage.removeItem('pwa_install_dismissed');
-      setTimeout(() => window.location.reload(), 100);
+      // No prompt available - Chrome likely blocked it due to repeated dismissals
+      // Guide user to use browser menu instead
+      alert(
+        'Để cài đặt ứng dụng, vui lòng:\n\n' +
+        '1. Bấm menu (⋮) trên góc phải\n' +
+        '2. Chọn "Thêm vào màn hình chính"\n\n' +
+        'Nếu không thấy tùy chọn này, vui lòng xóa cache của trình duyệt và thử lại.'
+      );
       return;
     }
 
