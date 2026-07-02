@@ -12,6 +12,7 @@ import DocumentPanel from '../components/DocumentPanel';
 import NotesPanel from '../components/NotesPanel';
 import PasswordGate from '../components/PasswordGate';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
+import PWAInstallButton from '../components/PWAInstallButton';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
@@ -323,6 +324,9 @@ function HomeContent() {
               <span className={`font-bold leading-none ${fontSize === 'xs' ? 'text-xs' : fontSize === 'sm' ? 'text-sm' : 'text-base'}`}>A</span>
               <span className="text-[8px] leading-none mt-0.5 opacity-70">{fontSizeLabel[fontSize]}</span>
             </button>
+
+            {/* PWA Install button — mobile only */}
+            <PWAInstallButton />
 
             <button
               onClick={toggleTheme}
