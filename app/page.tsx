@@ -82,6 +82,8 @@ function HomeContent() {
   const [filterDate, setFilterDate] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
   const [dateError, setDateError] = useState('');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const advFilterMenuRef = useRef<HTMLDivElement>(null);
 
   const [composeAssigneeId, setComposeAssigneeId] = useState<number | ''>('');
   const [composeDeadline, setComposeDeadline] = useState<string>('');
@@ -458,12 +460,12 @@ function HomeContent() {
                 </button>
               )}
 
-              {/* Filters */}
-              <div className="flex flex-wrap items-center gap-2">
+              {/* Filters — mobile: 1 row (status + user + assignee + more) */}
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
                 {/* Status filter */}
                 <button
                   onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${FILTER_CFG[filterStatus].cls}`}
+                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${FILTER_CFG[filterStatus].cls}`}
                   title="Lọc trạng thái"
                 >
                   {FILTER_CFG[filterStatus].label}
@@ -473,10 +475,10 @@ function HomeContent() {
                 <select
                   value={filterUserId}
                   onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 py-1.5 text-xs max-w-[130px]"
+                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs shrink-0 max-w-[90px] sm:max-w-[130px]"
                   title="Lọc người tạo"
                 >
-                  <option value="all">Tất cả (tạo bởi)</option>
+                  <option value="all">Tất cả</option>
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
@@ -486,31 +488,56 @@ function HomeContent() {
                 <select
                   value={filterAssigneeId}
                   onChange={e => setFilterAssigneeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 text-xs max-w-[130px]"
+                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs shrink-0 max-w-[90px] sm:max-w-[130px]"
                   title="Lọc người nhận"
                 >
-                  <option value="all">Tất cả (nhận bởi)</option>
+                  <option value="all">Gán cho</option>
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
 
-                {/* Date filter */}
-                <div className="flex flex-col">
-                  <div className="relative">
-                    <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-[#858585] pointer-events-none" />
-                    <input
-                      type="date"
-                      max={today}
-                      value={filterDate === 'all' ? '' : filterDate}
-                      onChange={e => {
-                        if (e.target.value > today) { setDateError('Chưa đến ngày'); setFilterDate('all'); }
-                        else { setDateError(''); setFilterDate(e.target.value || 'all'); }
-                      }}
-                      className="pl-7 pr-2 py-1.5 border border-gray-300 dark:border-[#474747] rounded-lg text-xs bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] w-[130px]"
-                    />
-                  </div>
-                  {dateError && <span className="text-xs text-red-500 mt-0.5">{dateError}</span>}
+                {/* More filters button */}
+                <div className="relative" ref={advFilterMenuRef}>
+                  <button
+                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                    className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#3c3c3c] transition-colors shrink-0"
+                    title="Thêm bộ lọc"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+
+                  {/* Advanced filters dropdown */}
+                  {showAdvancedFilters && (
+                    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg p-2 z-40 w-48">
+                      {/* Date filter */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-gray-600 dark:text-[#858585] px-2 pt-1">Ngày:</label>
+                        <div className="relative px-2">
+                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-[#858585] pointer-events-none" />
+                          <input
+                            type="date"
+                            max={today}
+                            value={filterDate === 'all' ? '' : filterDate}
+                            onChange={e => {
+                              if (e.target.value > today) { setDateError('Chưa đến ngày'); setFilterDate('all'); }
+                              else { setDateError(''); setFilterDate(e.target.value || 'all'); }
+                            }}
+                            className="w-full pl-7 pr-2 py-1.5 border border-gray-300 dark:border-[#474747] rounded-lg text-xs bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4]"
+                          />
+                        </div>
+                        {dateError && <span className="text-xs text-red-500 px-2">{dateError}</span>}
+                      </div>
+                      <div className="border-t border-gray-200 dark:border-[#3c3c3c] mt-2 pt-2 px-2">
+                        <button
+                          onClick={() => setShowAdvancedFilters(false)}
+                          className="text-xs text-gray-500 dark:text-[#858585] hover:text-gray-700 dark:hover:text-[#d4d4d4]"
+                        >
+                          Đóng
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
