@@ -62,15 +62,25 @@ export function usePWAInstall() {
 
   const handleInstall = useCallback(async () => {
     // iOS: show manual guide instead of prompt
-    if (showIOSGuide || isIOS()) {
+    if (isIOS()) {
       setShowIOSGuide(true);
       return;
     }
 
-    if (!installPrompt) {
-      // Không có prompt → im lặng (có thể do điều kiện trình duyệt chưa đủ)
+    // If already installed, inform user
+    if (isStandalone()) {
+      alert('Ứng dụng đã được cài đặt trên thiết bị của bạn');
       return;
     }
+
+    if (!installPrompt) {
+      // No prompt available - clear PWA dismissal state and reload
+      // This helps when Chrome blocks prompt due to repeated dismissals
+      sessionStorage.removeItem('pwa_install_dismissed');
+      setTimeout(() => window.location.reload(), 100);
+      return;
+    }
+
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -80,7 +90,7 @@ export function usePWAInstall() {
     } else {
       handleDismiss();
     }
-  }, [installPrompt, showIOSGuide]);
+  }, [installPrompt]);
 
   const canInstall = !!installPrompt && !isInstalled;
 
