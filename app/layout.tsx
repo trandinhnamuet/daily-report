@@ -20,6 +20,12 @@ export const metadata: Metadata = {
   title: "Task Notes",
   description: "Ghi chú và quản lý công việc",
   manifest: "/manifest.json",
+  icons: [
+    {
+      rel: 'icon',
+      url: '/mobile-logo/logo-teamwork.jpeg',
+    },
+  ],
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
