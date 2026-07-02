@@ -54,10 +54,13 @@ export function usePWAInstall() {
     setShowPrompt(false);
   }, []);
 
+  const canInstall = !!installPrompt && !isInstalled;
+
   return {
     installPrompt,
     showPrompt,
     isInstalled,
+    canInstall,
     handleInstall,
     handleDismiss,
   };
