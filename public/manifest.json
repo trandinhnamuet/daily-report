@@ -1,6 +1,6 @@
 {
   "name": "Trecome Task Note",
-  "short_name": "Trecome",
+  "short_name": "Trecome Task Note",
   "description": "Quản lý công việc hàng ngày, note và task",
   "start_url": "/",
   "scope": "/",
