@@ -461,11 +461,11 @@ function HomeContent() {
               )}
 
               {/* Filters — mobile: 1 row (status + user + assignee + more) */}
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap">
+              <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
                 {/* Status filter */}
                 <button
                   onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
-                  className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0 ${FILTER_CFG[filterStatus].cls}`}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${FILTER_CFG[filterStatus].cls}`}
                   title="Lọc trạng thái"
                 >
                   {FILTER_CFG[filterStatus].label}
@@ -475,10 +475,10 @@ function HomeContent() {
                 <select
                   value={filterUserId}
                   onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs shrink-0 max-w-[90px] sm:max-w-[130px]"
+                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
                   title="Lọc người tạo"
                 >
-                  <option value="all">Tất cả</option>
+                  <option value="all">Tất cả (tạo bởi)</option>
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
@@ -488,20 +488,20 @@ function HomeContent() {
                 <select
                   value={filterAssigneeId}
                   onChange={e => setFilterAssigneeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2 sm:px-2.5 py-1 sm:py-1.5 text-xs shrink-0 max-w-[90px] sm:max-w-[130px]"
+                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
                   title="Lọc người nhận"
                 >
-                  <option value="all">Gán cho</option>
+                  <option value="all">Tất cả (nhận bởi)</option>
                   {users.map(u => (
                     <option key={u.id} value={u.id}>{u.name}</option>
                   ))}
                 </select>
 
                 {/* More filters button */}
-                <div className="relative" ref={advFilterMenuRef}>
+                <div className="relative shrink-0" ref={advFilterMenuRef}>
                   <button
                     onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#3c3c3c] transition-colors shrink-0"
+                    className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#3c3c3c] transition-colors"
                     title="Thêm bộ lọc"
                   >
                     <MessageSquare className="w-4 h-4" />
