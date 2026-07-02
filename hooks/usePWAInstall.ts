@@ -36,8 +36,16 @@ export function usePWAInstall() {
     };
   }, []);
 
+  const handleDismiss = useCallback(() => {
+    sessionStorage.setItem('pwa_install_dismissed', 'true');
+    setShowPrompt(false);
+  }, []);
+
   const handleInstall = useCallback(async () => {
-    if (!installPrompt) return;
+    if (!installPrompt) {
+      // Không có prompt → im lặng (có thể do điều kiện trình duyệt chưa đủ)
+      return;
+    }
     installPrompt.prompt();
     const { outcome } = await installPrompt.userChoice;
     if (outcome === 'accepted') {
@@ -47,12 +55,7 @@ export function usePWAInstall() {
     } else {
       handleDismiss();
     }
-  }, [installPrompt]);
-
-  const handleDismiss = useCallback(() => {
-    sessionStorage.setItem('pwa_install_dismissed', 'true');
-    setShowPrompt(false);
-  }, []);
+  }, [installPrompt, handleDismiss]);
 
   const canInstall = !!installPrompt && !isInstalled;
 
