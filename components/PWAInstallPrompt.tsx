@@ -2,12 +2,22 @@
 
 import { Download, X } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import IOSInstallGuide from './IOSInstallGuide';
 
 export default function PWAInstallPrompt() {
-  const { showPrompt, isInstalled, handleInstall, handleDismiss } = usePWAInstall();
+  const { showPrompt, showIOSGuide, isInstalled, handleInstall, handleDismiss } = usePWAInstall();
 
-  if (!showPrompt || isInstalled) return null;
+  if (isInstalled) return null;
 
+  return (
+    <>
+      <IOSInstallGuide isOpen={showIOSGuide} onDismiss={handleDismiss} />
+      {!showIOSGuide && showPrompt && <Prompt handleInstall={handleInstall} handleDismiss={handleDismiss} />}
+    </>
+  );
+}
+
+function Prompt({ handleInstall, handleDismiss }: { handleInstall: () => void; handleDismiss: () => void }) {
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-auto sm:w-80 z-40">
       <div className="bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg p-4 sm:p-5 space-y-4">

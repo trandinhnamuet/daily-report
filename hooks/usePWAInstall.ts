@@ -5,15 +5,33 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+const isIOS = () => {
+  if (typeof window === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+};
+
+const isStandalone = () => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         (window.navigator as any).standalone === true;
+};
+
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     // Check if PWA is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandalone()) {
       setIsInstalled(true);
+      return;
+    }
+
+    // iOS không support beforeinstallprompt, show manual guide thay vào
+    if (isIOS()) {
+      setShowIOSGuide(true);
       return;
     }
 
@@ -21,7 +39,7 @@ export function usePWAInstall() {
     const dismissed = sessionStorage.getItem('pwa_install_dismissed');
     if (dismissed) return;
 
-    // Listen for install prompt
+    // Listen for install prompt (Android/Chrome/Edge)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       const event = e as BeforeInstallPromptEvent;
@@ -39,9 +57,16 @@ export function usePWAInstall() {
   const handleDismiss = useCallback(() => {
     sessionStorage.setItem('pwa_install_dismissed', 'true');
     setShowPrompt(false);
+    setShowIOSGuide(false);
   }, []);
 
   const handleInstall = useCallback(async () => {
+    // iOS: show manual guide instead of prompt
+    if (showIOSGuide || isIOS()) {
+      setShowIOSGuide(true);
+      return;
+    }
+
     if (!installPrompt) {
       // Không có prompt → im lặng (có thể do điều kiện trình duyệt chưa đủ)
       return;
@@ -55,13 +80,14 @@ export function usePWAInstall() {
     } else {
       handleDismiss();
     }
-  }, [installPrompt, handleDismiss]);
+  }, [installPrompt, showIOSGuide]);
 
   const canInstall = !!installPrompt && !isInstalled;
 
   return {
     installPrompt,
     showPrompt,
+    showIOSGuide,
     isInstalled,
     canInstall,
     handleInstall,
