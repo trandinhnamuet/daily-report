@@ -5,6 +5,7 @@ import "./globals.css";
 import { UserProvider } from "@/app/provider/UserProvider";
 import { ThemeProvider } from "@/app/provider/ThemeProvider";
 import SWRegister from "@/components/SWRegister";
+import PWAEventCapture from "@/components/PWAEventCapture";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,6 +61,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <PWAEventCapture />
         <ThemeProvider>
           <UserProvider>
             <SWRegister />

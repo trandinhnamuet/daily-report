@@ -39,6 +39,14 @@ export function usePWAInstall() {
     const dismissed = sessionStorage.getItem('pwa_install_dismissed');
     if (dismissed) return;
 
+    // Check if event was already captured globally (for early capture)
+    const existingPrompt = (window as any).__pwaInstallPrompt as BeforeInstallPromptEvent | undefined;
+    if (existingPrompt) {
+      setInstallPrompt(existingPrompt);
+      setShowPrompt(true);
+      return;
+    }
+
     // Listen for install prompt (Android/Chrome/Edge)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -47,10 +55,18 @@ export function usePWAInstall() {
       setShowPrompt(true);
     };
 
+    // Also listen for custom event from PWAEventCapture
+    const handlePWAInstallCaptured = (e: CustomEvent) => {
+      setInstallPrompt(e.detail);
+      setShowPrompt(true);
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwainstallpromptcaptured', handlePWAInstallCaptured as EventListener);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwainstallpromptcaptured', handlePWAInstallCaptured as EventListener);
     };
   }, []);
 
