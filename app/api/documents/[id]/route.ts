@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { excerpt, logActivity } from '@/lib/activity';
 
 export async function DELETE(
   _request: NextRequest,
@@ -14,13 +15,21 @@ export async function DELETE(
     }
 
     const result = await pool.query(
-      'DELETE FROM daily_report.documents WHERE id = $1 RETURNING id',
+      'DELETE FROM daily_report.documents WHERE id = $1 RETURNING id, detail',
       [docId]
     );
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
+
+    await logActivity({
+      action: 'delete',
+      entityType: 'document',
+      entityId: docId,
+      summary: `Xoá tài liệu "${excerpt(result.rows[0].detail)}"`,
+      detail: { detail: result.rows[0].detail },
+    });
 
     return NextResponse.json({ success: true });
   } catch {

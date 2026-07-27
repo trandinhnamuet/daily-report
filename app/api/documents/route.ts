@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '../../../lib/db';
+import { excerpt, logActivity } from '@/lib/activity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,7 +39,15 @@ export async function POST(request: NextRequest) {
       VALUES (0, $1) 
       RETURNING id, user_id, detail, created_at
     `, [detail]);
-    
+
+    await logActivity({
+      action: 'create',
+      entityType: 'document',
+      entityId: result.rows[0].id,
+      summary: `Thêm tài liệu "${excerpt(detail)}"`,
+      detail: { detail },
+    });
+
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating document:', error);

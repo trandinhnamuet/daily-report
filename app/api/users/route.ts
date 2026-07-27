@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '../../../lib/db';
+import { logActivity } from '@/lib/activity';
 
 export async function GET() {
   try {
@@ -23,7 +24,15 @@ export async function POST(request: NextRequest) {
       'INSERT INTO daily_report.users (name) VALUES ($1) RETURNING *',
       [name]
     );
-    
+
+    await logActivity({
+      action: 'create',
+      entityType: 'user',
+      entityId: result.rows[0].id,
+      summary: `Thêm user "${result.rows[0].name}"`,
+      detail: { name: result.rows[0].name },
+    });
+
     return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error: any) {
     console.error('Error creating user:', error);
