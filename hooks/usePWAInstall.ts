@@ -5,6 +5,23 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+// PWAEventCapture bắt beforeinstallprompt sớm rồi treo event lên window
+type PWAWindow = Window & { __pwaInstallPrompt?: BeforeInstallPromptEvent };
+// Safari iOS đánh dấu chế độ standalone trên navigator
+type IOSNavigator = Navigator & { standalone?: boolean };
+
+const pwaWindow = () => window as unknown as PWAWindow;
+
+// localStorage (không phải sessionStorage): tắt popup 1 lần là im trong DISMISS_DAYS ngày,
+// thay vì hiện lại mỗi lần mở tab mới.
+const DISMISS_KEY = 'pwa_install_dismissed_at';
+const INSTALLED_KEY = 'pwa_installed';
+const LEGACY_DISMISS_KEY = 'pwa_install_dismissed';
+const DISMISS_DAYS = 30;
+
+// Người dùng bấm nút cài đặt ở header → báo cho PWAInstallPrompt (instance hook khác) mở guide iOS
+const SHOW_IOS_GUIDE_EVENT = 'pwa:show-ios-guide';
+
 const isIOS = () => {
   if (typeof window === 'undefined') return false;
   return /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -13,7 +30,24 @@ const isIOS = () => {
 const isStandalone = () => {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true;
+         (window.navigator as IOSNavigator).standalone === true ||
+         document.referrer.startsWith('android-app://');
+};
+
+const readFlag = (key: string): string | null => {
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+
+const writeFlag = (key: string, value: string) => {
+  try { localStorage.setItem(key, value); } catch { /* private mode */ }
+};
+
+const wasInstalled = () => readFlag(INSTALLED_KEY) === 'true';
+
+const isDismissed = () => {
+  const at = Number(readFlag(DISMISS_KEY));
+  if (!at) return false;
+  return Date.now() - at < DISMISS_DAYS * 24 * 60 * 60 * 1000;
 };
 
 export function usePWAInstall() {
@@ -22,12 +56,43 @@ export function usePWAInstall() {
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
 
+  // Theo dõi cài đặt thành công — chạy kể cả khi popup đang bị tắt
   useEffect(() => {
-    // Check if PWA is already installed
-    if (isStandalone()) {
+    const onInstalled = () => {
+      writeFlag(INSTALLED_KEY, 'true');
+      setIsInstalled(true);
+      setShowPrompt(false);
+      setShowIOSGuide(false);
+    };
+    const onShowIOSGuide = () => setShowIOSGuide(true);
+
+    window.addEventListener('appinstalled', onInstalled);
+    window.addEventListener(SHOW_IOS_GUIDE_EVENT, onShowIOSGuide);
+    return () => {
+      window.removeEventListener('appinstalled', onInstalled);
+      window.removeEventListener(SHOW_IOS_GUIDE_EVENT, onShowIOSGuide);
+    };
+  }, []);
+
+  useEffect(() => {
+    // Đã cài (đang chạy standalone hoặc từng cài trên máy này)
+    if (isStandalone() || wasInstalled()) {
       setIsInstalled(true);
       return;
     }
+
+    // Đã tắt popup trước đó → không tự hiện lại nữa (áp dụng cho cả iOS lẫn Android).
+    // Check này phải nằm TRƯỚC nhánh iOS, nếu không iPhone sẽ hiện guide mỗi lần vào app.
+    if (isDismissed()) return;
+
+    // Bản cũ lưu ở sessionStorage: coi như đã tắt, đồng thời dọn key cũ
+    try {
+      if (sessionStorage.getItem(LEGACY_DISMISS_KEY)) {
+        sessionStorage.removeItem(LEGACY_DISMISS_KEY);
+        writeFlag(DISMISS_KEY, String(Date.now()));
+        return;
+      }
+    } catch { /* private mode */ }
 
     // iOS không support beforeinstallprompt, show manual guide thay vào
     if (isIOS()) {
@@ -35,12 +100,8 @@ export function usePWAInstall() {
       return;
     }
 
-    // Check if install was dismissed before
-    const dismissed = sessionStorage.getItem('pwa_install_dismissed');
-    if (dismissed) return;
-
     // Check if event was already captured globally (for early capture)
-    const existingPrompt = (window as any).__pwaInstallPrompt as BeforeInstallPromptEvent | undefined;
+    const existingPrompt = pwaWindow().__pwaInstallPrompt;
     if (existingPrompt) {
       setInstallPrompt(existingPrompt);
       setShowPrompt(true);
@@ -71,15 +132,17 @@ export function usePWAInstall() {
   }, []);
 
   const handleDismiss = useCallback(() => {
-    sessionStorage.setItem('pwa_install_dismissed', 'true');
+    writeFlag(DISMISS_KEY, String(Date.now()));
     setShowPrompt(false);
     setShowIOSGuide(false);
   }, []);
 
   const handleInstall = useCallback(async () => {
-    // iOS: show manual guide instead of prompt
+    // iOS: show manual guide instead of prompt.
+    // Nút ở header dùng instance hook riêng nên phải bắn event để PWAInstallPrompt render guide.
     if (isIOS()) {
       setShowIOSGuide(true);
+      window.dispatchEvent(new Event(SHOW_IOS_GUIDE_EVENT));
       return;
     }
 
@@ -89,7 +152,9 @@ export function usePWAInstall() {
       return;
     }
 
-    if (!installPrompt) {
+    const prompt = installPrompt ?? pwaWindow().__pwaInstallPrompt;
+
+    if (!prompt) {
       // No prompt available - Chrome likely blocked it due to repeated dismissals
       // Guide user to use browser menu instead
       alert(
@@ -101,16 +166,18 @@ export function usePWAInstall() {
       return;
     }
 
-    installPrompt.prompt();
-    const { outcome } = await installPrompt.userChoice;
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
     if (outcome === 'accepted') {
+      writeFlag(INSTALLED_KEY, 'true');
+      pwaWindow().__pwaInstallPrompt = undefined;
       setInstallPrompt(null);
       setShowPrompt(false);
       // Don't dismiss - user accepted
     } else {
       handleDismiss();
     }
-  }, [installPrompt]);
+  }, [installPrompt, handleDismiss]);
 
   const canInstall = !!installPrompt && !isInstalled;
 
