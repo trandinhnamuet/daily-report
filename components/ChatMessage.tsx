@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, Link2 } from 'lucide-react';
 
+import MessageInteractions from './MessageInteractions';
+
 export type Status = 'note' | 'todo' | 'done';
 
 interface User {
@@ -174,6 +176,9 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
         <div className={`ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${FONT_CLS[fontSize]}`}>
           {report.message}
         </div>
+
+        {/* Cảm xúc · bình luận · đã đọc */}
+        <MessageInteractions reportId={report.id} authorId={report.user_id} />
       </div>
 
       {/* Right: status strip */}
