@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '@/lib/db';
+import { logActivity } from '@/lib/activity';
 
 /**
  * PUT /api/users/[id]
@@ -23,6 +24,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
+    const before = await pool.query('SELECT name FROM daily_report.users WHERE id = $1', [userId]);
+
     const result = await pool.query(
       `
       UPDATE daily_report.users
@@ -36,6 +39,17 @@ export async function PUT(
 
     if (result.rowCount === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const previousName = before.rows[0]?.name ?? null;
+    if (previousName !== trimmedName) {
+      await logActivity({
+        action: 'update',
+        entityType: 'user',
+        entityId: userId,
+        summary: `Đổi tên user từ "${previousName ?? '—'}" thành "${trimmedName}"`,
+        detail: { before: previousName, after: trimmedName },
+      });
     }
 
     return NextResponse.json({
@@ -88,6 +102,14 @@ export async function DELETE(
     if (result.rowCount === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    await logActivity({
+      action: 'delete',
+      entityType: 'user',
+      entityId: userId,
+      summary: `Xoá user "${result.rows[0].name}"`,
+      detail: { name: result.rows[0].name },
+    });
 
     const response = NextResponse.json({
       success: true,

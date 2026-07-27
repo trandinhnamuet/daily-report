@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { randomBytes } from 'crypto';
 import pool from '../../../lib/db';
+import { excerpt, getActor, logActivity } from '@/lib/activity';
 import type { QueryResult } from 'pg';
 
 // public_id ngắn 8 ký tự hex, sinh ở tầng app để có thể retry khi trùng
@@ -102,9 +102,25 @@ if (!insertResult) throw new Error('Failed to insert report');
 );
 
 
+    const created = insertResult.rows[0];
+
+    const cookieActor = await getActor();
+    const actor = cookieActor.id
+      ? cookieActor
+      : { id: Number(user_id), name: userResult.rows[0]?.name ?? 'Khách' };
+
+    await logActivity({
+      actor,
+      action: 'create',
+      entityType: 'report',
+      entityId: created.id,
+      summary: `Tạo ${created.status === 'note' ? 'ghi chú' : 'công việc'} "${excerpt(created.message)}"`,
+      detail: { message: created.message, status: created.status },
+    });
+
     return NextResponse.json(
       {
-        ...insertResult.rows[0],
+        ...created,
         user_name: userResult.rows[0]?.name,
       },
       { status: 201 }

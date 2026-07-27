@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, Users, X, Calendar, Sun, Moon, FileText, StickyNote, MessageSquare } from 'lucide-react';
+import { Send, Users, X, Calendar, Sun, Moon, FileText, StickyNote, MessageSquare, History } from 'lucide-react';
 import Link from 'next/link';
 
 import { useAutoResize } from '../hooks/useAutoResize';
@@ -335,6 +335,13 @@ function HomeContent() {
             >
               {theme === 'light' ? <Moon className="w-4 h-4 sm:w-5 sm:h-5" /> : <Sun className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
+            <Link
+              href="/activity"
+              className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#4e4e4e] transition-colors"
+              title="Lịch sử hành động"
+            >
+              <History className="w-4 h-4 sm:w-5 sm:h-5" />
+            </Link>
             <Link
               href="/users"
               className="flex items-center gap-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs sm:text-sm"
