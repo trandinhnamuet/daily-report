@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock, Link2 } from 'lucide-react';
 
+import MessageInteractions from './MessageInteractions';
+
 export type Status = 'note' | 'todo' | 'done';
 
 interface User {
@@ -261,6 +263,9 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
             </button>
           )}
         </div>
+
+        {/* Cảm xúc · bình luận · đã đọc */}
+        <MessageInteractions reportId={report.id} authorId={report.user_id} />
       </div>
 
       {/* Right: status strip */}
