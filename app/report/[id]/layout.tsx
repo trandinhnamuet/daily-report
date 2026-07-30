@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import pool from '@/lib/db';
+import { FEATURES } from '@/lib/edition';
 
 function baseUrl() {
   // Ưu tiên domain production cố định, KHÔNG dùng VERCEL_URL (URL deployment
@@ -34,8 +35,9 @@ export async function generateMetadata(
     const description = r.message.replace(/\s+/g, ' ').trim().slice(0, 200);
     const url = `${base}/report/${publicId}`;
 
-    // Chỉ hiện title khi có người nhận; ngược lại để trống
-    const title = r.assignee_name ? `Task of ${r.assignee_name}` : '';
+    // Chỉ hiện title khi edition có tính năng người nhận VÀ task có người nhận;
+    // ngược lại để trống (edition personal luôn trống — giống branch main cũ)
+    const title = FEATURES.assignee && r.assignee_name ? `Task of ${r.assignee_name}` : '';
 
     return {
       title: { absolute: title },

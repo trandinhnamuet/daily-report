@@ -1,4 +1,6 @@
--- Migration 006: Add assignee_id and deadline columns (teamwork branch only)
+-- Migration 006: Add assignee_id and deadline columns
+-- Cột tồn tại ở MỌI edition (nullable, không dùng thì để trống);
+-- UI chỉ bật ở edition teamwork/enterprise (xem lib/edition.ts)
 ALTER TABLE daily_report.daily_report
   ADD COLUMN IF NOT EXISTS assignee_id INTEGER REFERENCES daily_report.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS deadline DATE;

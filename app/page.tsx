@@ -16,6 +16,7 @@ import PWAInstallButton from '../components/PWAInstallButton';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
+import { FEATURES } from '@/lib/edition';
 
 type FilterStatus = 'all' | 'todo' | 'done' | 'note';
 type ActiveTab = 'documents' | 'reports' | 'notes';
@@ -467,112 +468,158 @@ function HomeContent() {
                 </button>
               )}
 
-              {/* Filters — mobile: 1 row (status + user + assignee + more) */}
-              <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
-                {/* Status filter */}
-                <button
-                  onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${FILTER_CFG[filterStatus].cls}`}
-                  title="Lọc trạng thái"
-                >
-                  {FILTER_CFG[filterStatus].label}
-                </button>
-
-                {/* User filter */}
-                <select
-                  value={filterUserId}
-                  onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
-                  title="Lọc người tạo"
-                >
-                  <option value="all">Tất cả (tạo bởi)</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-
-                {/* Assignee filter */}
-                <select
-                  value={filterAssigneeId}
-                  onChange={e => setFilterAssigneeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                  className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
-                  title="Lọc người nhận"
-                >
-                  <option value="all">Tất cả (nhận bởi)</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-
-                {/* More filters button */}
-                <div className="relative shrink-0" ref={advFilterMenuRef}>
+              {FEATURES.assignee ? (
+                /* ── Filters (teamwork) — mobile: 1 row (status + user + assignee + more) ── */
+                <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+                  {/* Status filter */}
                   <button
-                    onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                    className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#3c3c3c] transition-colors"
-                    title="Thêm bộ lọc"
+                    onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap shrink-0 ${FILTER_CFG[filterStatus].cls}`}
+                    title="Lọc trạng thái"
                   >
-                    <MessageSquare className="w-4 h-4" />
+                    {FILTER_CFG[filterStatus].label}
                   </button>
 
-                  {/* Advanced filters dropdown */}
-                  {showAdvancedFilters && (
-                    <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg p-2 z-40 w-48">
-                      {/* Date filter */}
-                      <div className="space-y-2">
-                        <label className="block text-xs font-medium text-gray-600 dark:text-[#858585] px-2 pt-1">Ngày:</label>
-                        <div className="relative px-2">
-                          <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-[#858585] pointer-events-none" />
-                          <input
-                            type="date"
-                            max={today}
-                            value={filterDate === 'all' ? '' : filterDate}
-                            onChange={e => {
-                              if (e.target.value > today) { setDateError('Chưa đến ngày'); setFilterDate('all'); }
-                              else { setDateError(''); setFilterDate(e.target.value || 'all'); }
-                            }}
-                            className="w-full pl-7 pr-2 py-1.5 border border-gray-300 dark:border-[#474747] rounded-lg text-xs bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4]"
-                          />
+                  {/* User filter */}
+                  <select
+                    value={filterUserId}
+                    onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
+                    title="Lọc người tạo"
+                  >
+                    <option value="all">Tất cả (tạo bởi)</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+
+                  {/* Assignee filter */}
+                  <select
+                    value={filterAssigneeId}
+                    onChange={e => setFilterAssigneeId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="bg-purple-50 dark:bg-[#2a1f3d] dark:text-[#c084fc] border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2 py-1 sm:px-2.5 sm:py-1.5 text-xs shrink-0 min-w-[140px] sm:min-w-[160px]"
+                    title="Lọc người nhận"
+                  >
+                    <option value="all">Tất cả (nhận bởi)</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+
+                  {/* More filters button */}
+                  <div className="relative shrink-0" ref={advFilterMenuRef}>
+                    <button
+                      onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                      className="p-1.5 sm:p-2 rounded-lg text-gray-500 dark:text-[#cccccc] hover:bg-gray-100 dark:hover:bg-[#3c3c3c] transition-colors"
+                      title="Thêm bộ lọc"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+
+                    {/* Advanced filters dropdown */}
+                    {showAdvancedFilters && (
+                      <div className="absolute top-full left-0 mt-1 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg p-2 z-40 w-48">
+                        {/* Date filter */}
+                        <div className="space-y-2">
+                          <label className="block text-xs font-medium text-gray-600 dark:text-[#858585] px-2 pt-1">Ngày:</label>
+                          <div className="relative px-2">
+                            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-[#858585] pointer-events-none" />
+                            <input
+                              type="date"
+                              max={today}
+                              value={filterDate === 'all' ? '' : filterDate}
+                              onChange={e => {
+                                if (e.target.value > today) { setDateError('Chưa đến ngày'); setFilterDate('all'); }
+                                else { setDateError(''); setFilterDate(e.target.value || 'all'); }
+                              }}
+                              className="w-full pl-7 pr-2 py-1.5 border border-gray-300 dark:border-[#474747] rounded-lg text-xs bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4]"
+                            />
+                          </div>
+                          {dateError && <span className="text-xs text-red-500 px-2">{dateError}</span>}
                         </div>
-                        {dateError && <span className="text-xs text-red-500 px-2">{dateError}</span>}
+                        <div className="border-t border-gray-200 dark:border-[#3c3c3c] mt-2 pt-2 px-2">
+                          <button
+                            onClick={() => setShowAdvancedFilters(false)}
+                            className="text-xs text-gray-500 dark:text-[#858585] hover:text-gray-700 dark:hover:text-[#d4d4d4]"
+                          >
+                            Đóng
+                          </button>
+                        </div>
                       </div>
-                      <div className="border-t border-gray-200 dark:border-[#3c3c3c] mt-2 pt-2 px-2">
-                        <button
-                          onClick={() => setShowAdvancedFilters(false)}
-                          className="text-xs text-gray-500 dark:text-[#858585] hover:text-gray-700 dark:hover:text-[#d4d4d4]"
-                        >
-                          Đóng
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* ── Filters (personal) — status + user + date inline, đúng bố cục branch main ── */
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Status filter */}
+                  <button
+                    onClick={() => setFilterStatus(s => FILTER_CYCLE[s])}
+                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${FILTER_CFG[filterStatus].cls}`}
+                    title="Lọc trạng thái"
+                  >
+                    {FILTER_CFG[filterStatus].label}
+                  </button>
+
+                  {/* User filter */}
+                  <select
+                    value={filterUserId}
+                    onChange={e => setFilterUserId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                    className="bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 py-1.5 text-xs max-w-[130px]"
+                  >
+                    <option value="all">Tất cả</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+
+                  {/* Date filter */}
+                  <div className="flex flex-col">
+                    <div className="relative">
+                      <Calendar className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-[#858585] pointer-events-none" />
+                      <input
+                        type="date"
+                        max={today}
+                        value={filterDate === 'all' ? '' : filterDate}
+                        onChange={e => {
+                          if (e.target.value > today) { setDateError('Chưa đến ngày'); setFilterDate('all'); }
+                          else { setDateError(''); setFilterDate(e.target.value || 'all'); }
+                        }}
+                        className="pl-7 pr-2 py-1.5 border border-gray-300 dark:border-[#474747] rounded-lg text-xs bg-gray-100 dark:bg-[#3c3c3c] dark:text-[#d4d4d4] w-[130px]"
+                      />
+                    </div>
+                    {dateError && <span className="text-xs text-red-500 mt-0.5">{dateError}</span>}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Compose form */}
             <form onSubmit={handleSubmit} className="flex flex-col gap-1.5 sm:gap-2">
-              {/* Assignee + deadline row */}
-              <div className="flex gap-1.5 sm:gap-2">
-                <select
-                  value={composeAssigneeId}
-                  onChange={e => setComposeAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
-                  disabled={isReadOnly || isLoading}
-                  className="flex-1 border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 bg-purple-50 dark:bg-[#2a1f3d] text-gray-900 dark:text-[#c084fc] text-xs disabled:opacity-50"
-                >
-                  <option value="">Người nhận (tuỳ chọn)</option>
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </select>
-                <input
-                  type="date"
-                  value={composeDeadline}
-                  onChange={e => setComposeDeadline(e.target.value)}
-                  disabled={isReadOnly || isLoading}
-                  className="border border-orange-200 dark:border-[#7c4a00] rounded-lg px-2.5 py-1.5 bg-orange-50 dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c] text-xs w-[130px] disabled:opacity-50"
-                  title="Deadline"
-                />
-              </div>
+              {/* Assignee + deadline row (teamwork/enterprise) */}
+              {FEATURES.assignee && (
+                <div className="flex gap-1.5 sm:gap-2">
+                  <select
+                    value={composeAssigneeId}
+                    onChange={e => setComposeAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
+                    disabled={isReadOnly || isLoading}
+                    className="flex-1 border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 bg-purple-50 dark:bg-[#2a1f3d] text-gray-900 dark:text-[#c084fc] text-xs disabled:opacity-50"
+                  >
+                    <option value="">Người nhận (tuỳ chọn)</option>
+                    {users.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="date"
+                    value={composeDeadline}
+                    onChange={e => setComposeDeadline(e.target.value)}
+                    disabled={isReadOnly || isLoading}
+                    className="border border-orange-200 dark:border-[#7c4a00] rounded-lg px-2.5 py-1.5 bg-orange-50 dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c] text-xs w-[130px] disabled:opacity-50"
+                    title="Deadline"
+                  />
+                </div>
+              )}
               {/* Message + send row */}
               <div className="flex gap-1.5 sm:gap-2">
                 <textarea

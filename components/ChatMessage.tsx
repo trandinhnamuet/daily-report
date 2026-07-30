@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock, Link2 } from 'lucide-react';
 
 import MessageInteractions from './MessageInteractions';
+import { FEATURES } from '@/lib/edition';
 
 export type Status = 'note' | 'todo' | 'done';
 
@@ -209,7 +210,8 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
           {report.message}
         </div>
 
-        {/* Assignee + deadline row */}
+        {/* Assignee + deadline row (teamwork/enterprise) */}
+        {FEATURES.assignee && (
         <div className="ml-7 sm:ml-10 mt-1.5 flex flex-wrap items-center gap-2">
           {/* Assignee */}
           {editingAssignee ? (
@@ -263,6 +265,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
             </button>
           )}
         </div>
+        )}
 
         {/* Cảm xúc · bình luận · đã đọc */}
         <MessageInteractions reportId={report.id} authorId={report.user_id} />

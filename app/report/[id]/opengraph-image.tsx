@@ -1,5 +1,6 @@
 import { ImageResponse } from 'next/og';
 import pool from '@/lib/db';
+import { FEATURES } from '@/lib/edition';
 
 export const runtime = 'nodejs';
 export const alt = 'Task preview';
@@ -58,7 +59,9 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const avatarChar = report.user_name ? report.user_name.charAt(0).toUpperCase() : '?';
   const message = report.message.replace(/\s+/g, ' ').trim();
   const messageClipped = message.length > 300 ? message.slice(0, 300) + '…' : message;
-  const deadlineStr = report.deadline
+  // Edition không có tính năng người nhận → không hiện footer assignee/deadline
+  const assigneeName = FEATURES.assignee ? report.assignee_name : null;
+  const deadlineStr = FEATURES.assignee && report.deadline
     ? (() => { const d = new Date(report.deadline); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; })()
     : null;
 
@@ -116,16 +119,16 @@ export default async function Image({ params }: { params: Promise<{ id: string }
           </div>
 
           {/* Footer: assignee + deadline */}
-          {(report.assignee_name || deadlineStr) && (
+          {(assigneeName || deadlineStr) && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 24 }}>
-              {report.assignee_name && (
+              {assigneeName && (
                 <div
                   style={{
                     display: 'flex', alignItems: 'center', background: '#f3e8ff', color: '#7e22ce',
                     fontSize: 26, fontWeight: 600, padding: '8px 20px', borderRadius: 12, marginRight: 16,
                   }}
                 >
-                  👤 {report.assignee_name}
+                  👤 {assigneeName}
                 </div>
               )}
               {deadlineStr && (

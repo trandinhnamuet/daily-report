@@ -6,6 +6,7 @@ import { UserProvider } from "@/app/provider/UserProvider";
 import { ThemeProvider } from "@/app/provider/ThemeProvider";
 import SWRegister from "@/components/SWRegister";
 import PWAEventCapture from "@/components/PWAEventCapture";
+import { BRAND } from "@/lib/edition";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,6 +22,11 @@ export const metadata: Metadata = {
   title: "Task Notes",
   description: "Ghi chú và quản lý công việc",
   manifest: "/manifest.json",
+  // Icon theo edition (trước đây dùng file convention app/icon.png — mỗi branch 1 file khác nhau)
+  icons: {
+    icon: [{ url: BRAND.favicon, type: BRAND.faviconType }],
+    apple: [{ url: BRAND.appleIcon }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

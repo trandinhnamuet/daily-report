@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Task Notes
+
+Ứng dụng ghi chú + quản lý công việc hàng ngày (Next.js + Postgres), hỗ trợ PWA.
+
+## Editions — 1 branch, nhiều phiên bản
+
+Từ branch `unified`, hai branch cũ (`main` và `teamwork`) được gộp làm một.
+Phiên bản app được chọn bằng biến môi trường **lúc build**:
+
+```bash
+NEXT_PUBLIC_EDITION=personal   # bản cá nhân   (branch main cũ)
+NEXT_PUBLIC_EDITION=teamwork   # bản Trecome   (branch teamwork cũ) — mặc định nếu không set
+NEXT_PUBLIC_EDITION=enterprise # bản doanh nghiệp (đang chuẩn bị)
+```
+
+| | personal | teamwork | enterprise (tương lai) |
+|---|---|---|---|
+| Tên app / icon / manifest | My Task Note | Trecome Task Note | Trecome (tạm) |
+| Người nhận + deadline | ❌ | ✅ | ✅ |
+| Comment / cảm xúc / đã đọc | ✅ | ✅ | ✅ |
+| Lịch sử hành động (/activity) | ✅ | ✅ | ✅ |
+| Phạm vi nhìn thấy task | tất cả | tất cả | mình + cấp dưới (chưa làm) |
+
+Toàn bộ khác biệt nằm trong [lib/edition.ts](lib/edition.ts) (`BRAND` + `FEATURES`).
+Thêm tính năng chung → code bình thường, không cần quan tâm edition.
+Thêm tính năng riêng → thêm flag vào `FEATURES` và bọc `{FEATURES.xxx && ...}`.
+
+**Lưu ý:** vì là biến `NEXT_PUBLIC_*`, giá trị được nhúng vào bundle lúc `next build`.
+Mỗi deployment (Vercel project) set giá trị riêng trong Environment Variables rồi redeploy.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env   # điền thông tin DB + chọn NEXT_PUBLIC_EDITION
+npm run dev            # chạy migrate rồi mở dev server
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `npm run dev` / `npm run build` đều chạy migration trước (`scripts/migrate.js`).
+- Migration đánh dấu đã chạy trong bảng `daily_report.migrations`, các bảng dùng
+  `CREATE TABLE IF NOT EXISTS` nên nhiều deployment chung 1 DB vẫn an toàn.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy (Vercel)
 
-## Learn More
+1 repo → nhiều Vercel project, mỗi project:
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- trỏ cùng branch `unified`
+- set `NEXT_PUBLIC_EDITION` khác nhau (`personal` / `teamwork`)
+- DB có thể chung hoặc riêng (schema `daily_report`)
