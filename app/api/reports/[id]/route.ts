@@ -41,6 +41,32 @@ export async function PATCH(
     const prev = before.rows[0];
     const actor = await getActor();
 
+    // Message update (vd: tick checkbox markdown trong tin nhắn)
+    if ('message' in body) {
+      const message = typeof body.message === 'string' ? body.message.trim() : '';
+      if (!message) {
+        return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
+      }
+
+      const result = await pool.query(
+        'UPDATE daily_report.daily_report SET message = $1 WHERE id = $2 RETURNING id, message',
+        [message, reportId]
+      );
+
+      if (prev.message !== message) {
+        await logActivity({
+          actor,
+          action: 'update',
+          entityType: 'report',
+          entityId: reportId,
+          summary: `Sửa nội dung "${excerpt(message, 80)}"`,
+          detail: { before: prev.message, after: message },
+        });
+      }
+
+      return NextResponse.json(result.rows[0]);
+    }
+
     // Status update
     if ('status' in body) {
       const { status } = body;

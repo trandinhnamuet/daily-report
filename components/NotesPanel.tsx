@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAutoResize } from '../hooks/useAutoResize';
 import { Send, StickyNote, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
+import MarkdownMessage from './MarkdownMessage';
 
 interface Note {
   id: number;
@@ -68,6 +69,20 @@ export default function NotesPanel() {
     }
   };
 
+  // Tick/untick checkbox trong ghi chú → lưu nguyên văn mới
+  const handleTaskToggle = async (id: number, newNote: string) => {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, note: newNote } : n));
+    try {
+      await fetch(`/api/notes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: newNote }),
+      });
+    } catch (error) {
+      console.error('Error updating note:', error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
@@ -127,7 +142,7 @@ export default function NotesPanel() {
                           {format(new Date(note.created_at), 'HH:mm dd/MM/yyyy')}
                         </div>
                         <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words">
-                          {note.note}
+                          <MarkdownMessage text={note.note} onToggleTask={t => handleTaskToggle(note.id, t)} />
                         </div>
                       </div>
                       <button

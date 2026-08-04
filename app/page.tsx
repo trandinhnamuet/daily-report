@@ -325,6 +325,15 @@ function HomeContent() {
     });
   };
 
+  const handleMessageChange = (id: number, newMessage: string) => {
+    setReports(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, message: newMessage } : r);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      return next;
+    });
+    setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, message: newMessage } : r) : null);
+  };
+
   const isReadOnly = !currentUserId;
 
   /* ────────── Tab nav helper ────────── */
@@ -432,6 +441,7 @@ function HomeContent() {
                   onStatusChange={handleStatusChange}
                   onAssigneeChange={handleAssigneeChange}
                   onDeadlineChange={handleDeadlineChange}
+                  onMessageChange={handleMessageChange}
                 />
               ))
             ) : (

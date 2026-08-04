@@ -64,6 +64,10 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     setReport(prev => prev ? { ...prev, deadline } : prev);
   };
 
+  const handleMessageChange = (_rid: number, message: string) => {
+    setReport(prev => prev ? { ...prev, message } : prev);
+  };
+
   const handleDelete = async (rid: number) => {
     try {
       const res = await fetch(`/api/reports/${rid}`, { method: 'DELETE' });
@@ -102,6 +106,7 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
             onStatusChange={handleStatusChange}
             onAssigneeChange={handleAssigneeChange}
             onDeadlineChange={handleDeadlineChange}
+            onMessageChange={handleMessageChange}
           />
         )}
       </div>
