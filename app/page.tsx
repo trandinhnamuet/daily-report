@@ -293,6 +293,15 @@ function HomeContent() {
     } catch (err) { console.error('updateStatus error:', err); }
   };
 
+  const handleMessageChange = (id: number, newMessage: string) => {
+    setReports(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, message: newMessage } : r);
+      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      return next;
+    });
+    setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, message: newMessage } : r) : null);
+  };
+
   const isReadOnly = !currentUserId;
 
   /* ────────── Tab nav helper ────────── */
@@ -398,6 +407,7 @@ function HomeContent() {
                   fontSize={fontSize}
                   onDelete={handleDeleteReport}
                   onStatusChange={handleStatusChange}
+                  onMessageChange={handleMessageChange}
                 />
               ))
             ) : (

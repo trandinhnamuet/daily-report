@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, Link2 } from 'lucide-react';
 
 import MessageInteractions from './MessageInteractions';
+import MarkdownMessage from './MarkdownMessage';
 
 export type Status = 'note' | 'todo' | 'done';
 
@@ -31,6 +32,7 @@ interface ChatMessageProps {
   fontSize?: FontSize;
   onDelete: (id: number) => void;
   onStatusChange: (id: number, status: Status) => void;
+  onMessageChange: (id: number, message: string) => void;
 }
 
 const CYCLE: Record<Status, Status> = { note: 'todo', todo: 'done', done: 'note' };
@@ -65,7 +67,7 @@ const FONT_CLS: Record<FontSize, string> = {
   base: 'text-base sm:text-sm',
 };
 
-export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange }: ChatMessageProps) {
+export default function ChatMessage({ report, users, status, fontSize = 'xs', onDelete, onStatusChange, onMessageChange }: ChatMessageProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -79,6 +81,18 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
 
   const cfg = STATUS_CFG[status];
   const StatusIcon = cfg.Icon;
+
+  // Tick/untick checkbox trong nội dung → lưu nguyên văn mới
+  const handleTaskToggle = async (newMessage: string) => {
+    onMessageChange(report.id, newMessage);
+    try {
+      await fetch(`/api/reports/${report.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: newMessage }),
+      });
+    } catch { /* optimistic update already applied */ }
+  };
 
   const updateMenuPos = () => {
     const rect = menuBtnRef.current?.getBoundingClientRect();
@@ -174,7 +188,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
 
         {/* Message body */}
         <div className={`ml-7 sm:ml-10 mt-0.5 sm:mt-1 text-gray-700 dark:text-[#d4d4d4] whitespace-pre-wrap break-words [overflow-wrap:anywhere] ${FONT_CLS[fontSize]}`}>
-          {report.message}
+          <MarkdownMessage text={report.message} onToggleTask={handleTaskToggle} />
         </div>
 
         {/* Cảm xúc · bình luận · đã đọc */}

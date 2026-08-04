@@ -19,10 +19,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid report id' }, { status: 400 });
     }
 
-    const { status } = await request.json();
-    if (!['note', 'todo', 'done'].includes(status)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
-    }
+    const body = await request.json();
 
     const before = await pool.query(
       'SELECT id, message, status FROM daily_report.daily_report WHERE id = $1',
@@ -32,28 +29,61 @@ export async function PATCH(
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
     const prev = before.rows[0];
+    const actor = await getActor();
 
-    const result = await pool.query(
-      'UPDATE daily_report.daily_report SET status = $1 WHERE id = $2 RETURNING id, status',
-      [status, reportId]
-    );
+    // Cập nhật nội dung (vd: tick checkbox markdown trong tin nhắn)
+    if ('message' in body) {
+      const message = typeof body.message === 'string' ? body.message.trim() : '';
+      if (!message) {
+        return NextResponse.json({ error: 'Invalid message' }, { status: 400 });
+      }
 
-    if (result.rowCount === 0) {
-      return NextResponse.json({ error: 'Report not found' }, { status: 404 });
+      const result = await pool.query(
+        'UPDATE daily_report.daily_report SET message = $1 WHERE id = $2 RETURNING id, message',
+        [message, reportId]
+      );
+
+      if (prev.message !== message) {
+        await logActivity({
+          actor,
+          action: 'update',
+          entityType: 'report',
+          entityId: reportId,
+          summary: `Sửa nội dung "${excerpt(message, 80)}"`,
+          detail: { before: prev.message, after: message },
+        });
+      }
+
+      return NextResponse.json(result.rows[0]);
     }
 
-    if (prev.status !== status) {
-      await logActivity({
-        actor: await getActor(),
-        action: 'status_change',
-        entityType: 'report',
-        entityId: reportId,
-        summary: `Đổi trạng thái "${excerpt(prev.message, 80)}" từ ${STATUS_LABEL[prev.status] ?? prev.status} sang ${STATUS_LABEL[status] ?? status}`,
-        detail: { before: prev.status, after: status },
-      });
+    // Cập nhật trạng thái
+    if ('status' in body) {
+      const { status } = body;
+      if (!['note', 'todo', 'done'].includes(status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      }
+
+      const result = await pool.query(
+        'UPDATE daily_report.daily_report SET status = $1 WHERE id = $2 RETURNING id, status',
+        [status, reportId]
+      );
+
+      if (prev.status !== status) {
+        await logActivity({
+          actor,
+          action: 'status_change',
+          entityType: 'report',
+          entityId: reportId,
+          summary: `Đổi trạng thái "${excerpt(prev.message, 80)}" từ ${STATUS_LABEL[prev.status] ?? prev.status} sang ${STATUS_LABEL[status] ?? status}`,
+          detail: { before: prev.status, after: status },
+        });
+      }
+
+      return NextResponse.json(result.rows[0]);
     }
 
-    return NextResponse.json(result.rows[0]);
+    return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });
   } catch {
     return NextResponse.json({ error: 'Failed to update status' }, { status: 500 });
   }
