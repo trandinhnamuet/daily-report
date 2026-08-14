@@ -40,6 +40,9 @@ yarn-error.log*
 # local database backups
 /backups/
 
+# local infra notes (Supabase accounts, connection info)
+/DATABASE_INFO.md
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
