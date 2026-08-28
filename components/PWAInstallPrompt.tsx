@@ -5,9 +5,10 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import IOSInstallGuide from './IOSInstallGuide';
 
 export default function PWAInstallPrompt() {
-  const { showPrompt, showIOSGuide, isInstalled, handleInstall, handleDismiss } = usePWAInstall();
+  const { showPrompt, showIOSGuide, isInstalled, isMobile, handleInstall, handleDismiss } = usePWAInstall();
 
-  if (isInstalled) return null;
+  // Xem trên laptop/desktop thì không nhắc cài app
+  if (isInstalled || !isMobile) return null;
 
   return (
     <>

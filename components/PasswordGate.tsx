@@ -3,43 +3,98 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { Lock } from 'lucide-react';
 
-const STORAGE_KEY = 'app_password';
+// Cờ local chỉ để mở khoá ngay khi mở app (tránh nháy màn "Đang kiểm tra")
+// và để không khoá người dùng khi offline. Nguồn sự thật là cookie httpOnly.
+const UNLOCKED_KEY = 'app_unlocked';
+// Bản cũ lưu thẳng mật khẩu ở localStorage — đọc 1 lần để đổi lấy cookie rồi xoá.
+const LEGACY_PASSWORD_KEY = 'app_password';
 
-async function verify(password: string): Promise<boolean> {
+type Verdict = 'ok' | 'denied' | 'unknown';
+
+const readFlag = (key: string): string | null => {
+  try { return localStorage.getItem(key); } catch { return null; }
+};
+const writeFlag = (key: string, value: string) => {
+  try { localStorage.setItem(key, value); } catch { /* private mode */ }
+};
+const clearFlag = (key: string) => {
+  try { localStorage.removeItem(key); } catch { /* private mode */ }
+};
+
+// 'unknown' = không hỏi được server (mất mạng, 5xx, cold start lỗi).
+// Phân biệt với 'denied' là điểm mấu chốt: trước đây mọi lỗi đều bị coi là sai
+// mật khẩu nên chỉ cần rớt mạng một nhịp là user phải nhập lại.
+async function checkSession(): Promise<Verdict> {
+  try {
+    const res = await fetch('/api/auth/verify', { cache: 'no-store' });
+    if (!res.ok) return 'unknown';
+    const data = await res.json();
+    return data.ok ? 'ok' : 'denied';
+  } catch {
+    return 'unknown';
+  }
+}
+
+async function submitPassword(password: string): Promise<Verdict> {
   try {
     const res = await fetch('/api/auth/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     });
-    if (!res.ok) return false;
+    if (!res.ok) return 'unknown';
     const data = await res.json();
-    return !!data.ok;
+    return data.ok ? 'ok' : 'denied';
   } catch {
-    return false;
+    return 'unknown';
   }
 }
 
 export default function PasswordGate({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<'checking' | 'locked' | 'unlocked'>('checking');
   const [input, setInput] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<'wrong' | 'network' | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Khi mount: thử mật khẩu đã lưu. Đúng → mở luôn; sai/không có → khoá.
   useEffect(() => {
     let mounted = true;
-    const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
-    if (!saved) { setStatus('locked'); return; }
-    verify(saved).then(ok => {
-      if (!mounted) return;
-      if (ok) {
-        setStatus('unlocked');
-      } else {
-        localStorage.removeItem(STORAGE_KEY); // pass đã đổi → xoá pass cũ
-        setStatus('locked');
+
+    (async () => {
+      const wasUnlocked = readFlag(UNLOCKED_KEY) === 'true';
+      // Từng mở khoá trên máy này → cho vào ngay, vẫn xác thực lại ở nền.
+      if (wasUnlocked) setStatus('unlocked');
+
+      let verdict = await checkSession();
+
+      // Không có cookie nhưng còn mật khẩu bản cũ → tự đổi lấy cookie, khỏi bắt nhập lại.
+      if (verdict === 'denied') {
+        const legacy = readFlag(LEGACY_PASSWORD_KEY);
+        if (legacy) {
+          verdict = await submitPassword(legacy);
+          if (verdict === 'ok') clearFlag(LEGACY_PASSWORD_KEY);
+        }
       }
-    });
+
+      if (!mounted) return;
+
+      if (verdict === 'ok') {
+        writeFlag(UNLOCKED_KEY, 'true');
+        setStatus('unlocked');
+        return;
+      }
+
+      // Chỉ khoá lại khi server khẳng định không hợp lệ.
+      if (verdict === 'denied') {
+        clearFlag(UNLOCKED_KEY);
+        clearFlag(LEGACY_PASSWORD_KEY);
+        setStatus('locked');
+        return;
+      }
+
+      // 'unknown': giữ nguyên trạng thái cũ, tuyệt đối không xoá cờ đã mở khoá.
+      setStatus(wasUnlocked ? 'unlocked' : 'locked');
+    })();
+
     return () => { mounted = false; };
   }, []);
 
@@ -47,14 +102,14 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
     e.preventDefault();
     if (submitting || !input) return;
     setSubmitting(true);
-    setError(false);
-    const ok = await verify(input);
+    setError(null);
+    const verdict = await submitPassword(input);
     setSubmitting(false);
-    if (ok) {
-      localStorage.setItem(STORAGE_KEY, input);
+    if (verdict === 'ok') {
+      writeFlag(UNLOCKED_KEY, 'true');
       setStatus('unlocked');
     } else {
-      setError(true);
+      setError(verdict === 'denied' ? 'wrong' : 'network');
     }
   };
 
@@ -85,11 +140,16 @@ export default function PasswordGate({ children }: { children: React.ReactNode }
           type="password"
           autoFocus
           value={input}
-          onChange={e => { setInput(e.target.value); setError(false); }}
+          onChange={e => { setInput(e.target.value); setError(null); }}
           placeholder="Mật khẩu"
           className="w-full border border-gray-300 dark:border-[#474747] rounded-lg px-3 py-2 bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        {error && <p className="text-sm text-red-500">Mật khẩu không đúng.</p>}
+        {error === 'wrong' && <p className="text-sm text-red-500">Mật khẩu không đúng.</p>}
+        {error === 'network' && (
+          <p className="text-sm text-amber-600 dark:text-amber-500">
+            Không kết nối được máy chủ. Thử lại nhé.
+          </p>
+        )}
         <button
           type="submit"
           disabled={submitting || !input}

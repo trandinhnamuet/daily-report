@@ -24,7 +24,19 @@ const SHOW_IOS_GUIDE_EVENT = 'pwa:show-ios-guide';
 
 const isIOS = () => {
   if (typeof window === 'undefined') return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return true;
+  // iPadOS 13+ khai user agent giống macOS, chỉ phân biệt được qua touch
+  return /Macintosh/.test(navigator.userAgent) && (navigator.maxTouchPoints ?? 0) > 1;
+};
+
+// Popup cài app chỉ có nghĩa trên điện thoại/tablet. Chrome desktop cũng bắn
+// beforeinstallprompt nên nếu không lọc thì xem web trên laptop vẫn bị nhắc cài.
+const isMobileDevice = () => {
+  if (typeof window === 'undefined') return false;
+  if (/Android|iPad|iPhone|iPod|Mobile|Silk/i.test(navigator.userAgent)) return true;
+  if (isIOS()) return true;
+  // Laptop cảm ứng vẫn có chuột → any-hover: hover, nên vẫn bị loại
+  return window.matchMedia('(pointer: coarse) and (any-hover: none)').matches;
 };
 
 const isStandalone = () => {
@@ -55,6 +67,8 @@ export function usePWAInstall() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  // Tính một lần khi mount (SSR không có window nên luôn ra false)
+  const [isMobile] = useState(isMobileDevice);
 
   // Theo dõi cài đặt thành công — chạy kể cả khi popup đang bị tắt
   useEffect(() => {
@@ -80,6 +94,9 @@ export function usePWAInstall() {
       setIsInstalled(true);
       return;
     }
+
+    // Desktop/laptop: không bao giờ tự hiện popup cài app.
+    if (!isMobileDevice()) return;
 
     // Đã tắt popup trước đó → không tự hiện lại nữa (áp dụng cho cả iOS lẫn Android).
     // Check này phải nằm TRƯỚC nhánh iOS, nếu không iPhone sẽ hiện guide mỗi lần vào app.
@@ -186,6 +203,7 @@ export function usePWAInstall() {
     showPrompt,
     showIOSGuide,
     isInstalled,
+    isMobile,
     canInstall,
     handleInstall,
     handleDismiss,
