@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import pool from '../../../lib/db';
 import { excerpt, getActor, logActivity } from '@/lib/activity';
+import { fetchCommentCounts, fetchReactions, fetchReaders } from '@/lib/interactions';
 import type { QueryResult } from 'pg';
 
 // public_id ngắn 8 ký tự hex, sinh ở tầng app để có thể retry khi trùng
@@ -68,7 +69,24 @@ export async function GET(request: NextRequest) {
       values
     );
 
-    return NextResponse.json(result.rows);
+    // Gửi kèm cảm xúc / đã đọc / số comment ngay trong response, để client
+    // không phải chờ danh sách về rồi mới bắn thêm 1 request /interactions.
+    const ids = result.rows.map(r => r.id as number);
+    const [reactions, readers, commentCounts] = await Promise.all([
+      fetchReactions(ids),
+      fetchReaders(ids),
+      fetchCommentCounts(ids),
+    ]);
+    const rows = result.rows.map(r => ({
+      ...r,
+      interactions: {
+        reactions: reactions.get(r.id) ?? [],
+        readers: readers.get(r.id) ?? [],
+        comment_count: commentCounts.get(r.id) ?? 0,
+      },
+    }));
+
+    return NextResponse.json(rows);
   } catch {
     return NextResponse.json({ error: 'Failed to fetch reports' }, { status: 500 });
   }

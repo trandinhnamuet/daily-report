@@ -80,6 +80,18 @@ function scheduleFetch() {
   fetchTimer = setTimeout(flushFetch, FETCH_DEBOUNCE_MS);
 }
 
+/**
+ * Nạp sẵn dữ liệu tương tác đi kèm trong response /api/reports,
+ * để lúc message mount không phải bắn thêm request /api/reports/interactions.
+ */
+export function primeInteractions(rows: { id: number; interactions?: InteractionSummary | null }[]) {
+  for (const row of rows) {
+    if (!row.interactions) continue;
+    pendingFetch.delete(row.id);
+    setSummary(row.id, row.interactions);
+  }
+}
+
 /** Tải (hoặc tải lại) dữ liệu tương tác của các note/task */
 export function refreshInteractions(reportIds: number[]) {
   reportIds.forEach(id => pendingFetch.add(id));

@@ -4,7 +4,10 @@ import { Download } from 'lucide-react';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export default function PWAInstallButton() {
-  const { handleInstall } = usePWAInstall();
+  const { handleInstall, isInstalled, isMobile } = usePWAInstall();
+
+  // Chỉ có ích trên mobile chưa cài — desktop và app đã cài thì ẩn hẳn
+  if (!isMobile || isInstalled) return null;
 
   return (
     <button
