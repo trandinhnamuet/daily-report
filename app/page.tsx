@@ -16,6 +16,7 @@ import PWAInstallButton from '../components/PWAInstallButton';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
+import { primeInteractions } from '@/lib/interactionsStore';
 
 type FilterStatus = 'all' | 'todo' | 'done' | 'note';
 type ActiveTab = 'documents' | 'reports' | 'notes';
@@ -64,8 +65,12 @@ function HomeContent() {
   });
   const [reports, setReports] = useState<Report[]>(() => {
     if (typeof window === 'undefined') return [];
-    try { const r = sessionStorage.getItem('cache_reports'); return r ? JSON.parse(r) : []; }
-    catch { return []; }
+    try {
+      const r = sessionStorage.getItem('cache_reports');
+      const data: Report[] = r ? JSON.parse(r) : [];
+      primeInteractions(data); // cache có kèm tương tác → message mount không cần fetch thêm
+      return data;
+    } catch { return []; }
   });
 
   const DRAFT_KEY = 'draft_report';
@@ -182,6 +187,7 @@ function HomeContent() {
     fetch(`/api/reports?${params}`)
       .then(r => r.json())
       .then((data: Report[]) => {
+        primeInteractions(data);
         setFilteredReports(data);
         requestAnimationFrame(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }));
       })
@@ -207,7 +213,8 @@ function HomeContent() {
     try {
       const res = await fetch(`/api/reports?limit=${LOAD_LIMIT}`);
       if (!res.ok) throw new Error();
-      const data = await res.json();
+      const data: Report[] = await res.json();
+      primeInteractions(data);
       setReports(data);
       setHasMore(data.length === LOAD_LIMIT);
       sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
@@ -230,6 +237,7 @@ function HomeContent() {
       if (!res.ok) throw new Error();
       const older: Report[] = await res.json();
       if (older.length === 0) { setHasMore(false); return; }
+      primeInteractions(older);
 
       setReports(prev => {
         const next = [...prev, ...older];
