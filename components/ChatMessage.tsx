@@ -78,6 +78,10 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
   const [copied, setCopied] = useState(false);
   const [editingAssignee, setEditingAssignee] = useState(false);
   const [editingDeadline, setEditingDeadline] = useState(false);
+  // Thiết bị cảm ứng (mobile/tablet): dùng picker gốc thay vì input gõ tay
+  const [coarsePointer, setCoarsePointer] = useState(false);
+  const skipDeadlineBlur = useRef(false);
+  const deadlineTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -102,17 +106,55 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
     } catch { /* optimistic update already applied */ }
   };
 
-  const handleDeadlineChange = async (deadline: string) => {
-    setEditingDeadline(false);
-    onDeadlineChange(report.id, deadline || null);
-    try {
-      await fetch(`/api/reports/${report.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deadline: deadline || null }),
-      });
-    } catch { /* optimistic update already applied */ }
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)');
+    const update = () => setCoarsePointer(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  const deadlineValue = report.deadline?.slice(0, 10) ?? '';
+
+  // Cập nhật lạc quan ngay, PATCH được debounce vì picker trên mobile (iOS)
+  // bắn change liên tục khi lăn bánh xe chọn ngày.
+  const commitDeadline = (raw: string) => {
+    const deadline = raw || null;
+    onDeadlineChange(report.id, deadline);
+    if (deadlineTimer.current) clearTimeout(deadlineTimer.current);
+    deadlineTimer.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/reports/${report.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deadline }),
+        });
+      } catch { /* optimistic update already applied */ }
+    }, 300);
   };
+
+  // Desktop: chỉ lưu khi blur / Enter (KHÔNG lưu trong onChange — trình duyệt bắn
+  // change theo từng phím gõ với giá trị dở dang, sẽ đóng form ngay khi gõ 1 số).
+  const handleDeadlineBlur = (raw: string) => {
+    if (skipDeadlineBlur.current) { skipDeadlineBlur.current = false; return; }
+    setEditingDeadline(false);
+    if (raw !== deadlineValue) commitDeadline(raw);
+  };
+
+  const openDeadlineEditor = () => {
+    skipDeadlineBlur.current = false;
+    setEditingDeadline(true);
+  };
+
+  const cancelDeadlineEditor = () => {
+    skipDeadlineBlur.current = true;
+    setEditingDeadline(false);
+  };
+
+  const deadlineLabel = report.deadline ? format(new Date(report.deadline), 'dd/MM/yyyy') : 'Deadline';
+  const deadlineChipCls = report.deadline
+    ? 'bg-orange-100 text-orange-700 dark:bg-[#2a1a00] dark:text-[#fb923c] hover:bg-orange-200 dark:hover:bg-[#3a2500]'
+    : 'bg-gray-100 text-gray-400 dark:bg-[#2d2d2d] dark:text-[#6b6b6b] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]';
 
   // Tick/untick checkbox trong nội dung → lưu nguyên văn mới
   const handleTaskToggle = async (newMessage: string) => {
@@ -253,27 +295,43 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
           )}
 
           {/* Deadline */}
-          {editingDeadline ? (
+          {coarsePointer ? (
+            // Mobile: input date trong suốt phủ lên chip → chạm là mở picker gốc ngay.
+            // (Input mount sau khi chạm + autoFocus không mở được picker trên mobile.)
+            <label
+              className={`relative flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${deadlineChipCls}`}
+              title="Đặt deadline"
+            >
+              <CalendarClock className="w-3 h-3" />
+              {deadlineLabel}
+              <input
+                type="date"
+                value={deadlineValue}
+                onChange={e => commitDeadline(e.target.value)}
+                aria-label="Đặt deadline"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+            </label>
+          ) : editingDeadline ? (
             <input
               type="date"
               autoFocus
-              defaultValue={report.deadline?.slice(0, 10) ?? ''}
-              onBlur={e => handleDeadlineChange(e.target.value)}
-              onChange={e => handleDeadlineChange(e.target.value)}
+              defaultValue={deadlineValue}
+              onBlur={e => handleDeadlineBlur(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+                else if (e.key === 'Escape') { e.preventDefault(); cancelDeadlineEditor(); }
+              }}
               className="text-xs border border-orange-300 dark:border-[#7c4a00] rounded px-1.5 py-0.5 bg-white dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c]"
             />
           ) : (
             <button
-              onClick={() => setEditingDeadline(true)}
-              className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${
-                report.deadline
-                  ? 'bg-orange-100 text-orange-700 dark:bg-[#2a1a00] dark:text-[#fb923c] hover:bg-orange-200 dark:hover:bg-[#3a2500]'
-                  : 'bg-gray-100 text-gray-400 dark:bg-[#2d2d2d] dark:text-[#6b6b6b] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]'
-              }`}
+              onClick={openDeadlineEditor}
+              className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded transition-colors ${deadlineChipCls}`}
               title="Đặt deadline"
             >
               <CalendarClock className="w-3 h-3" />
-              {report.deadline ? format(new Date(report.deadline), 'dd/MM/yyyy') : 'Deadline'}
+              {deadlineLabel}
             </button>
           )}
         </div>
