@@ -2,18 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAutoResize } from '../hooks/useAutoResize';
-import { Send, StickyNote, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Send, StickyNote, ChevronDown, ChevronUp, Trash2, CloudOff, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import MarkdownMessage from './MarkdownMessage';
-
-interface Note {
-  id: number;
-  note: string;
-  created_at: string;
-}
+import { useNotes, syncNotes, addNote, updateNote, deleteNote } from '@/lib/notesOffline';
 
 export default function NotesPanel() {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { notes, online, pendingCount } = useNotes();
   const DRAFT_KEY = 'draft_note';
   const [message, setMessage] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -21,7 +16,6 @@ export default function NotesPanel() {
     }
     return '';
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem('notespanel_expanded');
@@ -39,73 +33,25 @@ export default function NotesPanel() {
   }, [message]);
 
   useEffect(() => {
-    fetchNotes();
+    syncNotes();
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [notes]);
 
-  const fetchNotes = async () => {
-    try {
-      const response = await fetch('/api/notes');
-      if (response.ok) {
-        const data = await response.json();
-        setNotes(data);
-      }
-    } catch (error) {
-      console.error('Error fetching notes:', error);
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      const res = await fetch(`/api/notes/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setNotes(prev => prev.filter(n => n.id !== id));
-      }
-    } catch (error) {
-      console.error('Error deleting note:', error);
-    }
-  };
+  // Thêm/sửa/xoá đều đi qua hàng đợi offline → mất mạng vẫn ghi được, có mạng tự đồng bộ
+  const handleDelete = (id: number) => deleteNote(id);
 
   // Tick/untick checkbox trong ghi chú → lưu nguyên văn mới
-  const handleTaskToggle = async (id: number, newNote: string) => {
-    setNotes(prev => prev.map(n => n.id === id ? { ...n, note: newNote } : n));
-    try {
-      await fetch(`/api/notes/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: newNote }),
-      });
-    } catch (error) {
-      console.error('Error updating note:', error);
-    }
-  };
+  const handleTaskToggle = (id: number, newNote: string) => updateNote(id, newNote);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/notes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: message.trim() }),
-      });
-
-      if (response.ok) {
-        const newNote = await response.json();
-        setNotes(prev => [newNote, ...prev]);
-        setMessage('');
-        localStorage.removeItem(DRAFT_KEY);
-      }
-    } catch (error) {
-      console.error('Error sending note:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    addNote(message.trim());
+    setMessage('');
+    localStorage.removeItem(DRAFT_KEY);
   };
 
   return (
@@ -122,6 +68,17 @@ export default function NotesPanel() {
         <div className="flex items-center space-x-2">
           <StickyNote className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-[#d4d4d4]">Ghi chú</h2>
+          {!online && (
+            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500" title="Đang offline — ghi chú được lưu trên máy">
+              <CloudOff className="w-3.5 h-3.5" />
+              Offline
+            </span>
+          )}
+          {pendingCount > 0 && (
+            <span className="text-xs text-gray-400 dark:text-[#858585]" title="Số thay đổi chờ đồng bộ">
+              {pendingCount} chờ đồng bộ
+            </span>
+          )}
         </div>
         {expanded
           ? <ChevronUp className="w-5 h-5 text-gray-400 dark:text-[#858585]" />
@@ -138,8 +95,13 @@ export default function NotesPanel() {
                   <div key={note.id} className="p-3 hover:bg-gray-50 dark:hover:bg-[#2a2d2e] relative group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-500 dark:text-[#858585] mb-1">
+                        <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-[#858585] mb-1">
                           {format(new Date(note.created_at), 'HH:mm dd/MM/yyyy')}
+                          {note.pending && (
+                            <span title="Chưa đồng bộ lên server">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                            </span>
+                          )}
                         </div>
                         <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words">
                           <MarkdownMessage text={note.note} onToggleTask={t => handleTaskToggle(note.id, t)} />
@@ -174,11 +136,10 @@ export default function NotesPanel() {
                 placeholder="Nhập ghi chú..."
                 rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#474747] rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none text-gray-900 dark:text-[#d4d4d4] bg-white dark:bg-[#2d2d30] placeholder-gray-400 dark:placeholder-[#858585] overflow-y-auto"
-                disabled={isLoading}
               />
               <button
                 type="submit"
-                disabled={!message.trim() || isLoading}
+                disabled={!message.trim()}
                 className="w-full px-4 py-2 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 <Send className="w-4 h-4 mr-2" />

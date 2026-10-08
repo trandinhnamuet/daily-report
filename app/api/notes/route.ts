@@ -28,17 +28,23 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { note } = await request.json();
-    
+    const { note, created_at } = await request.json();
+
     if (!note) {
       return NextResponse.json({ error: 'Note is required' }, { status: 400 });
     }
 
+    // Ghi chú viết lúc offline được gửi kèm giờ viết thật; không nhận giờ tương lai
+    const writtenAt = typeof created_at === 'string' ? new Date(created_at) : null;
+    const createdAt = writtenAt && !isNaN(writtenAt.getTime()) && writtenAt.getTime() <= Date.now()
+      ? writtenAt.toISOString()
+      : null;
+
     const result = await pool.query(`
-      INSERT INTO daily_report.notes (user_id, note) 
-      VALUES (0, $1) 
+      INSERT INTO daily_report.notes (user_id, note, created_at)
+      VALUES (0, $1, COALESCE($2::timestamptz, now()))
       RETURNING id, user_id, note, created_at
-    `, [note]);
+    `, [note, createdAt]);
 
     await logActivity({
       action: 'create',
