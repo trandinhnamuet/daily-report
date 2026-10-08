@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import pool from '../../../lib/db';
-import { excerpt, getActor, logActivity } from '@/lib/activity';
+import { excerpt, getActor, logActivity, writtenAt } from '@/lib/activity';
 import { fetchCommentCounts, fetchReactions, fetchReaders } from '@/lib/interactions';
 import type { QueryResult } from 'pg';
 
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { user_id, message, assignee_id, deadline } = await request.json();
+    const { user_id, message, assignee_id, deadline, created_at } = await request.json();
 if (!user_id || !message?.trim()) {
   return NextResponse.json(
     { error: 'Missing user or message' },
@@ -108,11 +108,11 @@ for (let attempt = 0; attempt < 5; attempt++) {
   try {
     insertResult = await pool.query(
       `
-      INSERT INTO daily_report.daily_report (user_id, message, assignee_id, deadline, public_id)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO daily_report.daily_report (user_id, message, assignee_id, deadline, public_id, created_at)
+      VALUES ($1, $2, $3, $4, $5, COALESCE($6::timestamptz, now()))
       RETURNING id, public_id, user_id, message, created_at, status, assignee_id, deadline
     `,
-      [Number(user_id), message.trim(), assignee_id ? Number(assignee_id) : null, deadline || null, genPublicId()]
+      [Number(user_id), message.trim(), assignee_id ? Number(assignee_id) : null, deadline || null, genPublicId(), writtenAt(created_at)]
     );
     break;
   } catch (e) {

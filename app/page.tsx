@@ -13,10 +13,12 @@ import NotesPanel from '../components/NotesPanel';
 import PasswordGate from '../components/PasswordGate';
 import PWAInstallPrompt from '../components/PWAInstallPrompt';
 import PWAInstallButton from '../components/PWAInstallButton';
+import OfflineBadge from '../components/OfflineBadge';
 
 import { useCurrentUser } from '@/app/provider/UserProvider';
 import { useTheme } from '@/app/provider/ThemeProvider';
 import { primeInteractions } from '@/lib/interactionsStore';
+import { useOutbox, onSynced, queueCreate, queueUpdate, queueDelete, type Op } from '@/lib/offlineQueue';
 
 type FilterStatus = 'all' | 'todo' | 'done' | 'note';
 type ActiveTab = 'documents' | 'reports' | 'notes';
@@ -43,6 +45,46 @@ interface Report {
   assignee_id: number | null;
   assignee_name: string | null;
   deadline: string | null;
+  /** Tạo/sửa lúc offline, chưa đồng bộ lên server */
+  pending?: boolean;
+}
+
+// localStorage (không phải sessionStorage): mở PWA lúc mất mạng vẫn thấy danh sách cũ
+const cacheGet = <T,>(key: string, fallback: T): T => {
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
+  catch { return fallback; }
+};
+const cacheSet = (key: string, value: unknown) => {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* đầy bộ nhớ / private mode */ }
+};
+
+/**
+ * Áp các thao tác công việc còn chờ trong outbox lên danh sách từ server/cache,
+ * để danh sách tải lại lúc đang chờ không làm mất thay đổi offline.
+ */
+function withPending(list: Report[], outbox: Op[], includeCreates: boolean): Report[] {
+  let next = list;
+  for (const op of outbox) {
+    if (op.kind !== 'report') continue;
+    if (op.type === 'create') {
+      if (!includeCreates) continue;
+      const b = op.body as {
+        user_id: number; user_name: string; message: string;
+        assignee_id: number | null; assignee_name: string | null; deadline: string | null;
+      };
+      next = [{
+        id: op.id, message: b.message, created_at: op.created_at,
+        user_id: b.user_id, user_name: b.user_name, status: 'note',
+        assignee_id: b.assignee_id, assignee_name: b.assignee_name, deadline: b.deadline,
+        pending: true,
+      }, ...next];
+    } else if (op.type === 'update') {
+      next = next.map(r => r.id === op.id ? { ...r, ...(op.body as Partial<Report>), pending: true } : r);
+    } else {
+      next = next.filter(r => r.id !== op.id);
+    }
+  }
+  return next;
 }
 
 export default function Home() {
@@ -60,17 +102,13 @@ function HomeContent() {
 
   const [users, setUsers] = useState<User[]>(() => {
     if (typeof window === 'undefined') return [];
-    try { const r = sessionStorage.getItem('cache_users'); return r ? JSON.parse(r) : []; }
-    catch { return []; }
+    return cacheGet<User[]>('cache_users', []);
   });
   const [reports, setReports] = useState<Report[]>(() => {
     if (typeof window === 'undefined') return [];
-    try {
-      const r = sessionStorage.getItem('cache_reports');
-      const data: Report[] = r ? JSON.parse(r) : [];
-      primeInteractions(data); // cache có kèm tương tác → message mount không cần fetch thêm
-      return data;
-    } catch { return []; }
+    const data = cacheGet<Report[]>('cache_reports', []);
+    primeInteractions(data); // cache có kèm tương tác → message mount không cần fetch thêm
+    return data;
   });
 
   const DRAFT_KEY = 'draft_report';
@@ -78,7 +116,6 @@ function HomeContent() {
     if (typeof window !== 'undefined') return localStorage.getItem(DRAFT_KEY) ?? '';
     return '';
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [showUserModal, setShowUserModal] = useState(false);
   const [hasCheckedUser, setHasCheckedUser] = useState(false);
 
@@ -126,10 +163,24 @@ function HomeContent() {
   const channelRef = useRef<BroadcastChannel | null>(null);
   const messageTextareaRef = useAutoResize(message);
 
-  const displayReports = (filteredReports ?? reports)
+  const outbox = useOutbox();
+  // Công việc tạo offline chỉ hiện ở danh sách chính, không chen vào kết quả lọc
+  const displayReports = withPending(filteredReports ?? reports, outbox, !filteredReports)
     .filter(r => filterStatus === 'all' ? true : (r.status ?? 'note') === filterStatus)
     .slice()
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  // Công việc tạo offline đã lên server → thay bản tạm bằng bản thật (id, public_id...)
+  useEffect(() => onSynced((op, data) => {
+    if (op.kind !== 'report' || op.type !== 'create' || !data) return;
+    const created = data as Report;
+    setReports(prev => {
+      if (prev.some(r => r.id === created.id)) return prev;
+      const next = [created, ...prev];
+      cacheSet(REPORTS_CACHE, next);
+      return next;
+    });
+  }), []);
 
   useEffect(() => {
     fetchUsers();
@@ -203,7 +254,7 @@ function HomeContent() {
       if (!res.ok) throw new Error();
       const data = await res.json();
       setUsers(data);
-      sessionStorage.setItem(USERS_CACHE, JSON.stringify(data));
+      cacheSet(USERS_CACHE, data);
     } catch { /* keep stale data */ }
   };
 
@@ -217,7 +268,7 @@ function HomeContent() {
       primeInteractions(data);
       setReports(data);
       setHasMore(data.length === LOAD_LIMIT);
-      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(data));
+      cacheSet(REPORTS_CACHE, data);
       if (data.length) setReporterId(data[0].user_id);
       setScrollTrigger(n => n + 1);
     } catch { /* keep stale data */ }
@@ -241,7 +292,7 @@ function HomeContent() {
 
       setReports(prev => {
         const next = [...prev, ...older];
-        sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+        cacheSet(REPORTS_CACHE, next);
         return next;
       });
       setHasMore(older.length === LOAD_LIMIT);
@@ -255,88 +306,69 @@ function HomeContent() {
     finally { setIsLoadingMore(false); }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Gửi qua hàng đợi offline: hiện ngay trong danh sách, mất mạng thì chờ gửi khi có mạng lại.
+  // user_name / assignee_name chỉ để hiển thị lúc đang chờ (server tự lấy lại tên).
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUserId || !message.trim()) return;
-    setIsLoading(true);
-    try {
-      const res = await fetch('/api/reports', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: currentUserId,
-          message: message.trim(),
-          assignee_id: composeAssigneeId || null,
-          deadline: composeDeadline || null,
-        }),
-      });
-      if (res.ok) {
-        const newReport = await res.json();
-        setReports(prev => {
-          const next = [newReport, ...prev];
-          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
-          return next;
-        });
-        setReporterId(newReport.user_id);
-        setMessage('');
-        setComposeAssigneeId('');
-        setComposeDeadline('');
-        localStorage.removeItem(DRAFT_KEY);
-        setScrollTrigger(n => n + 1);
-      }
-    } finally { setIsLoading(false); }
+    queueCreate('report', {
+      user_id: currentUserId,
+      user_name: currentUserName,
+      message: message.trim(),
+      assignee_id: composeAssigneeId || null,
+      assignee_name: users.find(u => u.id === composeAssigneeId)?.name ?? null,
+      deadline: composeDeadline || null,
+    });
+    setReporterId(currentUserId);
+    setMessage('');
+    setComposeAssigneeId('');
+    setComposeDeadline('');
+    localStorage.removeItem(DRAFT_KEY);
+    setScrollTrigger(n => n + 1);
   };
 
-  const handleDeleteReport = async (id: number) => {
-    try {
-      const res = await fetch(`/api/reports/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setReports(prev => {
-          const next = prev.filter(r => r.id !== id);
-          sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
-          return next;
-        });
-        setFilteredReports(prev => prev ? prev.filter(r => r.id !== id) : null);
-      }
-    } catch (err) { console.error('deleteReport error:', err); }
+  const handleDeleteReport = (id: number) => {
+    setReports(prev => {
+      const next = prev.filter(r => r.id !== id);
+      cacheSet(REPORTS_CACHE, next);
+      return next;
+    });
+    setFilteredReports(prev => prev ? prev.filter(r => r.id !== id) : null);
+    queueDelete('report', id);
   };
 
-  const handleStatusChange = async (id: number, status: Status) => {
+  const handleStatusChange = (id: number, status: Status) => {
     setReports(prev => {
       const next = prev.map(r => r.id === id ? { ...r, status } : r);
-      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      cacheSet(REPORTS_CACHE, next);
       return next;
     });
     setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, status } : r) : null);
-    try {
-      await fetch(`/api/reports/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-    } catch (err) { console.error('updateStatus error:', err); }
+    queueUpdate('report', id, { status });
   };
 
   const handleAssigneeChange = (id: number, assignee_id: number | null, assignee_name: string | null) => {
     setReports(prev => {
       const next = prev.map(r => r.id === id ? { ...r, assignee_id, assignee_name } : r);
-      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      cacheSet(REPORTS_CACHE, next);
       return next;
     });
+    setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, assignee_id, assignee_name } : r) : null);
   };
 
   const handleDeadlineChange = (id: number, deadline: string | null) => {
     setReports(prev => {
       const next = prev.map(r => r.id === id ? { ...r, deadline } : r);
-      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      cacheSet(REPORTS_CACHE, next);
       return next;
     });
+    setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, deadline } : r) : null);
   };
 
   const handleMessageChange = (id: number, newMessage: string) => {
     setReports(prev => {
       const next = prev.map(r => r.id === id ? { ...r, message: newMessage } : r);
-      sessionStorage.setItem(REPORTS_CACHE, JSON.stringify(next));
+      cacheSet(REPORTS_CACHE, next);
       return next;
     });
     setFilteredReports(prev => prev ? prev.map(r => r.id === id ? { ...r, message: newMessage } : r) : null);
@@ -360,9 +392,12 @@ function HomeContent() {
       {/* ── Header ── */}
       <div className="bg-white dark:bg-[#3c3c3c] shadow-sm border-b border-gray-200 dark:border-[#474747] shrink-0">
         <div className="px-3 sm:px-4 py-1.5 sm:py-3 flex justify-between items-center">
-          <h1 className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] leading-tight">
-            Task Notes
-          </h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <h1 className="text-sm sm:text-lg lg:text-2xl font-bold text-gray-900 dark:text-[#d4d4d4] leading-tight">
+              Task Notes
+            </h1>
+            <OfflineBadge kind="report" />
+          </div>
           <div className="flex items-center gap-1">
             {/* Font size toggle — mobile only */}
             <button
@@ -408,7 +443,7 @@ function HomeContent() {
         {/* Documents panel */}
         <div className={`
           border-r border-gray-200 dark:border-[#3c3c3c]
-          ${activeTab === 'documents' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}
+          ${activeTab === 'documents' ? 'flex flex-col flex-1 min-h-0 min-w-0' : 'hidden'}
           lg:flex lg:flex-col lg:w-80 lg:shrink-0 lg:min-h-0
         `}>
           <DocumentPanel />
@@ -574,7 +609,7 @@ function HomeContent() {
                 <select
                   value={composeAssigneeId}
                   onChange={e => setComposeAssigneeId(e.target.value === '' ? '' : Number(e.target.value))}
-                  disabled={isReadOnly || isLoading}
+                  disabled={isReadOnly}
                   className="flex-1 border border-purple-200 dark:border-[#6b3fa0] rounded-lg px-2.5 py-1.5 bg-purple-50 dark:bg-[#2a1f3d] text-gray-900 dark:text-[#c084fc] text-xs disabled:opacity-50"
                 >
                   <option value="">Người nhận (tuỳ chọn)</option>
@@ -586,7 +621,7 @@ function HomeContent() {
                   type="date"
                   value={composeDeadline}
                   onChange={e => setComposeDeadline(e.target.value)}
-                  disabled={isReadOnly || isLoading}
+                  disabled={isReadOnly}
                   className="border border-orange-200 dark:border-[#7c4a00] rounded-lg px-2.5 py-1.5 bg-orange-50 dark:bg-[#2a1a00] text-gray-900 dark:text-[#fb923c] text-xs w-[130px] disabled:opacity-50"
                   title="Deadline"
                 />
@@ -600,11 +635,11 @@ function HomeContent() {
                   placeholder={isReadOnly ? 'Chưa chọn user' : 'Nhập công việc hoặc ghi chú...'}
                   rows={1}
                   className="flex-1 border border-gray-300 dark:border-[#474747] rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 resize-none bg-white dark:bg-[#2d2d30] text-gray-900 dark:text-[#d4d4d4] placeholder-gray-400 dark:placeholder-[#858585] text-xs sm:text-sm overflow-y-auto"
-                  disabled={isReadOnly || isLoading}
+                  disabled={isReadOnly}
                 />
                 <button
                   type="submit"
-                  disabled={isReadOnly || !message.trim() || isLoading}
+                  disabled={isReadOnly || !message.trim()}
                   className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 shrink-0"
                 >
                   <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
@@ -617,7 +652,7 @@ function HomeContent() {
         {/* Notes panel */}
         <div className={`
           border-l border-gray-200 dark:border-[#3c3c3c]
-          ${activeTab === 'notes' ? 'flex flex-col flex-1 min-h-0' : 'hidden'}
+          ${activeTab === 'notes' ? 'flex flex-col flex-1 min-h-0 min-w-0' : 'hidden'}
           lg:flex lg:flex-col lg:w-80 lg:shrink-0 lg:min-h-0
         `}>
           <NotesPanel />

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 
 import ChatMessage, { type Status } from '@/components/ChatMessage';
+import { queueUpdate } from '@/lib/offlineQueue';
 
 interface User { id: number; name: string; }
 
@@ -45,15 +46,9 @@ export default function ReportPage({ params }: { params: Promise<{ id: string }>
     return () => { mounted = false; };
   }, [publicId]);
 
-  const handleStatusChange = async (rid: number, status: Status) => {
+  const handleStatusChange = (rid: number, status: Status) => {
     setReport(prev => prev ? { ...prev, status } : prev);
-    try {
-      await fetch(`/api/reports/${rid}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-    } catch { /* optimistic */ }
+    queueUpdate('report', rid, { status });
   };
 
   const handleAssigneeChange = (_rid: number, assignee_id: number | null, assignee_name: string | null) => {

@@ -2,17 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAutoResize } from '../hooks/useAutoResize';
-import { Send, FileText, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Send, FileText, ChevronDown, ChevronUp, Trash2, CloudUpload } from 'lucide-react';
 import { format } from 'date-fns';
-
-interface Document {
-  id: number;
-  detail: string;
-  created_at: string;
-}
+import OfflineBadge from './OfflineBadge';
+import { documentsStore } from '@/lib/offlineLists';
 
 export default function DocumentPanel() {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const documents = documentsStore.useItems();
   const DRAFT_KEY = 'draft_document';
   const [message, setMessage] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -20,7 +16,6 @@ export default function DocumentPanel() {
     }
     return '';
   });
-  const [isLoading, setIsLoading] = useState(false);
   const [expanded, setExpanded] = useState(() => {
     if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem('docpanel_expanded');
@@ -38,59 +33,22 @@ export default function DocumentPanel() {
   }, [message]);
 
   useEffect(() => {
-    fetchDocuments();
+    documentsStore.sync();
   }, []);
 
   useEffect(() => {
     scrollToBottom();
   }, [documents]);
 
-  const fetchDocuments = async () => {
-    try {
-      const response = await fetch('/api/documents');
-      if (response.ok) {
-        const data = await response.json();
-        setDocuments(data);
-      }
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-    }
-  };
+  // Thêm/xoá đều đi qua hàng đợi offline → mất mạng vẫn ghi được, có mạng tự đồng bộ
+  const handleDelete = (id: number) => documentsStore.remove(id);
 
-  const handleDelete = async (id: number) => {
-    try {
-      const res = await fetch(`/api/documents/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setDocuments(prev => prev.filter(d => d.id !== id));
-      }
-    } catch (error) {
-      console.error('Error deleting document:', error);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/documents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ detail: message.trim() }),
-      });
-
-      if (response.ok) {
-        const newDocument = await response.json();
-        setDocuments(prev => [newDocument, ...prev]);
-        setMessage('');
-        localStorage.removeItem(DRAFT_KEY);
-      }
-    } catch (error) {
-      console.error('Error sending document:', error);
-    } finally {
-      setIsLoading(false);
-    }
+    documentsStore.add(message.trim());
+    setMessage('');
+    localStorage.removeItem(DRAFT_KEY);
   };
 
   return (
@@ -107,6 +65,7 @@ export default function DocumentPanel() {
         <div className="flex items-center space-x-2">
           <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-[#d4d4d4]">Tài liệu</h2>
+          <OfflineBadge kind="document" />
         </div>
         {expanded
           ? <ChevronUp className="w-5 h-5 text-gray-400 dark:text-[#858585]" />
@@ -123,10 +82,16 @@ export default function DocumentPanel() {
                   <div key={doc.id} className="p-3 hover:bg-gray-50 dark:hover:bg-[#2a2d2e] relative group">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-500 dark:text-[#858585] mb-1">
+                        <div className="flex items-center gap-1 text-sm text-gray-500 dark:text-[#858585] mb-1">
                           {format(new Date(doc.created_at), 'HH:mm dd/MM/yyyy')}
+                          {doc.pending && (
+                            <span title="Chưa đồng bộ lên server">
+                              <CloudUpload className="w-3.5 h-3.5 text-amber-500" />
+                            </span>
+                          )}
                         </div>
-                        <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words">
+                        {/* overflow-wrap:anywhere: link dài không có dấu cách vẫn xuống dòng, không đẩy vỡ khung trên mobile */}
+                        <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                           {doc.detail}
                         </div>
                       </div>
@@ -159,11 +124,10 @@ export default function DocumentPanel() {
                 placeholder="Nhập tên tài liệu và link..."
                 rows={3}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-[#474747] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-gray-900 dark:text-[#d4d4d4] bg-white dark:bg-[#2d2d30] placeholder-gray-400 dark:placeholder-[#858585] overflow-y-auto"
-                disabled={isLoading}
               />
               <button
                 type="submit"
-                disabled={!message.trim() || isLoading}
+                disabled={!message.trim()}
                 className="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 <Send className="w-4 h-4 mr-2" />

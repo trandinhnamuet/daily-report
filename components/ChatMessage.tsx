@@ -3,10 +3,11 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock, Link2 } from 'lucide-react';
+import { Trash2, MoreHorizontal, StickyNote, Clock, CheckCircle2, UserCheck, CalendarClock, Link2, CloudUpload } from 'lucide-react';
 
 import MessageInteractions from './MessageInteractions';
 import MarkdownMessage from './MarkdownMessage';
+import { queueUpdate } from '@/lib/offlineQueue';
 
 export type Status = 'note' | 'todo' | 'done';
 
@@ -24,6 +25,8 @@ interface Report {
   assignee_id: number | null;
   assignee_name: string | null;
   deadline: string | null;
+  /** Tạo/sửa lúc offline, chưa đồng bộ lên server */
+  pending?: boolean;
 }
 
 type FontSize = 'xs' | 'sm' | 'base';
@@ -93,17 +96,16 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
   const cfg = STATUS_CFG[status];
   const StatusIcon = cfg.Icon;
 
-  const handleAssigneeChange = async (assigneeId: number | null) => {
+  // Bản ghi chưa có trên server (id âm) thì không có bình luận / cảm xúc / link
+  const isLocalOnly = report.id < 0;
+
+  // Mọi thay đổi đi qua hàng đợi offline: cập nhật lạc quan ngay, mất mạng thì chờ gửi sau.
+  // assignee_name gửi kèm để danh sách hiển thị đúng tên khi đang chờ (server bỏ qua field này).
+  const handleAssigneeChange = (assigneeId: number | null) => {
     setEditingAssignee(false);
     const assigneeName = assigneeId ? (users.find(u => u.id === assigneeId)?.name ?? null) : null;
     onAssigneeChange(report.id, assigneeId, assigneeName);
-    try {
-      await fetch(`/api/reports/${report.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignee_id: assigneeId }),
-      });
-    } catch { /* optimistic update already applied */ }
+    queueUpdate('report', report.id, { assignee_id: assigneeId, assignee_name: assigneeName });
   };
 
   useEffect(() => {
@@ -122,14 +124,8 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
     const deadline = raw || null;
     onDeadlineChange(report.id, deadline);
     if (deadlineTimer.current) clearTimeout(deadlineTimer.current);
-    deadlineTimer.current = setTimeout(async () => {
-      try {
-        await fetch(`/api/reports/${report.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ deadline }),
-        });
-      } catch { /* optimistic update already applied */ }
+    deadlineTimer.current = setTimeout(() => {
+      queueUpdate('report', report.id, { deadline });
     }, 300);
   };
 
@@ -157,15 +153,9 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
     : 'bg-gray-100 text-gray-400 dark:bg-[#2d2d2d] dark:text-[#6b6b6b] hover:bg-gray-200 dark:hover:bg-[#3a3a3a]';
 
   // Tick/untick checkbox trong nội dung → lưu nguyên văn mới
-  const handleTaskToggle = async (newMessage: string) => {
+  const handleTaskToggle = (newMessage: string) => {
     onMessageChange(report.id, newMessage);
-    try {
-      await fetch(`/api/reports/${report.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: newMessage }),
-      });
-    } catch { /* optimistic update already applied */ }
+    queueUpdate('report', report.id, { message: newMessage });
   };
 
   const updateMenuPos = () => {
@@ -221,6 +211,11 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
             </div>
             <span className="font-medium text-xs sm:text-sm text-gray-900 dark:text-[#d4d4d4] truncate">{displayName}</span>
             <span className="text-xs text-gray-500 dark:text-[#858585] whitespace-nowrap">{formattedTime}</span>
+            {report.pending && (
+              <span title="Chưa đồng bộ lên server" className="shrink-0">
+                <CloudUpload className="w-3.5 h-3.5 text-amber-500" />
+              </span>
+            )}
           </div>
 
           {/* Three-dot menu */}
@@ -240,13 +235,15 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
                 style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
                 className="w-44 bg-white dark:bg-[#252526] border border-gray-200 dark:border-[#3c3c3c] rounded-lg shadow-lg z-50 overflow-hidden"
               >
-                <button
-                  onClick={handleCopyLink}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e] transition-colors"
-                >
-                  <Link2 className="w-4 h-4" />
-                  {copied ? 'Đã copy!' : 'Lấy link'}
-                </button>
+                {!isLocalOnly && (
+                  <button
+                    onClick={handleCopyLink}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 dark:text-[#d4d4d4] hover:bg-gray-50 dark:hover:bg-[#2a2d2e] transition-colors"
+                  >
+                    <Link2 className="w-4 h-4" />
+                    {copied ? 'Đã copy!' : 'Lấy link'}
+                  </button>
+                )}
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(report.id); }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-[#2d1010] transition-colors"
@@ -337,7 +334,7 @@ export default function ChatMessage({ report, users, status, fontSize = 'xs', on
         </div>
 
         {/* Cảm xúc · bình luận · đã đọc */}
-        <MessageInteractions reportId={report.id} authorId={report.user_id} />
+        {!isLocalOnly && <MessageInteractions reportId={report.id} authorId={report.user_id} />}
       </div>
 
       {/* Right: status strip */}
