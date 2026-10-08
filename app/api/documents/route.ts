@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import pool from '../../../lib/db';
-import { excerpt, logActivity } from '@/lib/activity';
+import { excerpt, logActivity, writtenAt } from '@/lib/activity';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,17 +28,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { detail } = await request.json();
+    const { detail, created_at } = await request.json();
     
     if (!detail) {
       return NextResponse.json({ error: 'Detail is required' }, { status: 400 });
     }
 
     const result = await pool.query(`
-      INSERT INTO daily_report.documents (user_id, detail) 
-      VALUES (0, $1) 
+      INSERT INTO daily_report.documents (user_id, detail, created_at) 
+      VALUES (0, $1, COALESCE($2::timestamptz, now())) 
       RETURNING id, user_id, detail, created_at
-    `, [detail]);
+    `, [detail, writtenAt(created_at)]);
 
     await logActivity({
       action: 'create',

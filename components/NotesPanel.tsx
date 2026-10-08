@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAutoResize } from '../hooks/useAutoResize';
-import { Send, StickyNote, ChevronDown, ChevronUp, Trash2, CloudOff, Clock } from 'lucide-react';
+import { Send, StickyNote, ChevronDown, ChevronUp, Trash2, CloudUpload } from 'lucide-react';
 import { format } from 'date-fns';
 import MarkdownMessage from './MarkdownMessage';
-import { useNotes, syncNotes, addNote, updateNote, deleteNote } from '@/lib/notesOffline';
+import OfflineBadge from './OfflineBadge';
+import { notesStore } from '@/lib/offlineLists';
 
 export default function NotesPanel() {
-  const { notes, online, pendingCount } = useNotes();
+  const notes = notesStore.useItems();
   const DRAFT_KEY = 'draft_note';
   const [message, setMessage] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -33,7 +34,7 @@ export default function NotesPanel() {
   }, [message]);
 
   useEffect(() => {
-    syncNotes();
+    notesStore.sync();
   }, []);
 
   useEffect(() => {
@@ -41,15 +42,15 @@ export default function NotesPanel() {
   }, [notes]);
 
   // Thêm/sửa/xoá đều đi qua hàng đợi offline → mất mạng vẫn ghi được, có mạng tự đồng bộ
-  const handleDelete = (id: number) => deleteNote(id);
+  const handleDelete = (id: number) => notesStore.remove(id);
 
   // Tick/untick checkbox trong ghi chú → lưu nguyên văn mới
-  const handleTaskToggle = (id: number, newNote: string) => updateNote(id, newNote);
+  const handleTaskToggle = (id: number, newNote: string) => notesStore.update(id, newNote);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    addNote(message.trim());
+    notesStore.add(message.trim());
     setMessage('');
     localStorage.removeItem(DRAFT_KEY);
   };
@@ -68,17 +69,7 @@ export default function NotesPanel() {
         <div className="flex items-center space-x-2">
           <StickyNote className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-[#d4d4d4]">Ghi chú</h2>
-          {!online && (
-            <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500" title="Đang offline — ghi chú được lưu trên máy">
-              <CloudOff className="w-3.5 h-3.5" />
-              Offline
-            </span>
-          )}
-          {pendingCount > 0 && (
-            <span className="text-xs text-gray-400 dark:text-[#858585]" title="Số thay đổi chờ đồng bộ">
-              {pendingCount} chờ đồng bộ
-            </span>
-          )}
+          <OfflineBadge kind="note" />
         </div>
         {expanded
           ? <ChevronUp className="w-5 h-5 text-gray-400 dark:text-[#858585]" />
@@ -99,11 +90,11 @@ export default function NotesPanel() {
                           {format(new Date(note.created_at), 'HH:mm dd/MM/yyyy')}
                           {note.pending && (
                             <span title="Chưa đồng bộ lên server">
-                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              <CloudUpload className="w-3.5 h-3.5 text-amber-500" />
                             </span>
                           )}
                         </div>
-                        <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words">
+                        <div className="text-gray-800 dark:text-[#d4d4d4] text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                           <MarkdownMessage text={note.note} onToggleTask={t => handleTaskToggle(note.id, t)} />
                         </div>
                       </div>

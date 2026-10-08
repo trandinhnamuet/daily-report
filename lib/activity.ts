@@ -91,3 +91,14 @@ export function excerpt(text: string | null | undefined, max = 120): string {
   const flat = text.replace(/\s+/g, ' ').trim();
   return flat.length > max ? `${flat.slice(0, max)}…` : flat;
 }
+
+/**
+ * Giờ viết thật của bản ghi tạo lúc offline (client gửi kèm khi đồng bộ).
+ * Trả null nếu thiếu / sai / ở tương lai → dùng now() của DB.
+ */
+export function writtenAt(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime()) || date.getTime() > Date.now()) return null;
+  return date.toISOString();
+}
