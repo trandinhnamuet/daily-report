@@ -26,7 +26,7 @@ export default function NotesPanel() {
   const messageTextareaRef = useAutoResize(message);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
   };
 
   useEffect(() => {
@@ -79,9 +79,10 @@ export default function NotesPanel() {
       {expanded && (
         <>
           {/* Notes List */}
-          <div className="flex-1 overflow-y-auto">
+          {/* flex-col-reverse: khung tự neo ở cuối nên mở ra là thấy mục mới nhất, kể cả khi panel đang ẩn lúc tải (tab mobile) */}
+          <div className="flex-1 overflow-y-auto flex flex-col-reverse">
             {notes.length > 0 ? (
-              <div className="divide-y divide-gray-100 dark:divide-[#3c3c3c]">
+              <div className="mb-auto divide-y divide-gray-100 dark:divide-[#3c3c3c]">
                 {notes.slice().reverse().map(note => (
                   <div key={note.id} className="p-3 hover:bg-gray-50 dark:hover:bg-[#2a2d2e] relative group">
                     <div className="flex items-start justify-between gap-2">
@@ -111,7 +112,7 @@ export default function NotesPanel() {
                 <div ref={messagesEndRef} />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500 dark:text-[#858585] text-sm">
+              <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-[#858585] text-sm">
                 Chưa có ghi chú nào
               </div>
             )}
